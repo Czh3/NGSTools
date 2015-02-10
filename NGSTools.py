@@ -15,7 +15,7 @@ def isFile(file):
     if os.file.exists(file):
         return True
     else:
-        return Flase
+        return False
 
 def safeOpen(file, mode='r'):
     if file.endswith('.gz'):
