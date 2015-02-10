@@ -1,6 +1,6 @@
 import os
 import re
-import ConfigParser
+from ConfigParser import ConfigParser
 
 #############################################
 #Name:    Next Generation Sequencing Tools
@@ -89,8 +89,8 @@ class NGSTools：
         
         
         #read config file
-        config = configParser.ConfigParser()
-        config.readfg(cfgfile)
+        config = ConfigParser()
+        config.read(cfgfile)
         self.genome = config.get('genome', 'fasta')
         self.bowtie2Index = config.get('genome', 'bowtie2Index')
         self.gtf = config.get('genome', 'gtf')
