@@ -1,4 +1,7 @@
-# TEST VERSION
+# TEST VERSION of NGSTools
+
 This is a test version of Next Generation Sequencing toolkits.
 
 This Frame help you to build your own pipeline easily.
+
+Czh3<zhangchao3@hotmail.com>
