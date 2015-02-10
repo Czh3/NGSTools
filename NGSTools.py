@@ -1,3 +1,4 @@
+#-*- coding: UTF-8 -*-
 import os
 import re
 from ConfigParser import ConfigParser
@@ -17,7 +18,7 @@ def isFile(file):
         return Flase
 
 def safeOpen(file, mode='r'):
-    if file.endswith(.gz):
+    if file.endswith('.gz'):
         import gzip
         return gzip.open(file, mode)
     else:
@@ -59,9 +60,9 @@ def phred64to33(inputFq, outputFq):
         SeqIO.covert(tmpIN, "fastq-illumina", outputFq, "fastq-sanger")
 
 
-class NGSTools：
+class NGSTools:
     
-    def __init__(self, sampleName, outdir, fq1, fq2='', quanlityBase='32'，config='~/.NGSTools.cfg'):
+    def __init__(self, sampleName, outdir, fq1, fq2='', quanlityBase='32', config='~/.NGSTools.cfg'):
         self.sampleName = sampleName
         self.outdir = os.path.abs(outdir)
         _mkdir(outdir+'/data')
@@ -99,7 +100,7 @@ class NGSTools：
         self.htseq = config.get('tools', 'htseq-count')
     
 
-    def cutadapter(self, adapter5='AGATCGGAAGAGCGTCGTGTAGGGAAA', adapter3='GATCGGAAGAGCACACGTCTGAACTCCAGTCAC'，run=True):
+    def cutadapter(self, adapter5='AGATCGGAAGAGCGTCGTGTAGGGAAA', adapter3='GATCGGAAGAGCACACGTCTGAACTCCAGTCAC', run=True):
         '''cut illumina sequencing adapter'''
         myOutdir = self.outdir+'/qc'
         _mkdir(myOutdir)
@@ -110,7 +111,7 @@ class NGSTools：
             cleanFq1 = re.sub(r'fq$', 'clean.fq', self.fq1)
 
         if self.fq2 != '':
-            if self.fq2.endswith('.gz')
+            if self.fq2.endswith('.gz'):
                 cleanFq2 = re.sub(r'fq.gz$', 'clean.fq.gz', os.path.abs(self.fq2))
             else:
                 cleanFq2 = re.sub(r'fq$', 'clean.fq', self.fq2)
@@ -140,7 +141,7 @@ class NGSTools：
         _mkdir(myOutdir)
         
         _phredQual = ''
-        if self.quanlityBase == '64'
+        if self.quanlityBase == '64':
             _phredQual = '--phred64-quals'
         command = 'tophat -p 6 -G %s %s -o %s %s %s %s' % (self.gtf, _phredQual, myOutdir, self.bowtie2Index, self.fq1, self.fq2)
         command += '\nmv %s/accepted_hits.bam %s' % (myOutdir, myOutdir+'/'+self.bam)
@@ -154,7 +155,7 @@ class NGSTools：
         _mkdir(myOutdir)
         
         _phredQual = ''
-        if self.quanlityBase == '64'
+        if self.quanlityBase == '64':
             _phredQual = '--phred64'
         command = 'bowtie2 %s -x %s -p 6 %s -1 %s ' % (_phredQual, self.bowtie2Index, mode, self.fq1)
         if self.fq2 != '':
