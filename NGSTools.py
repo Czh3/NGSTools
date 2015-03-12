@@ -156,7 +156,8 @@ class getConfig:
 		getConfig.samtools = config.get('tools', 'samtools')
 		getConfig.GATK = config.get('tools', 'GATK')
 
-
+		getConfig.dbsnp = config.get('resource', 'dbsnp')
+		getConfig.know_indel = config.get('resource', 'know_indel')
 
 
 class NGSTools(getConfig):
@@ -192,7 +193,7 @@ class NGSTools(getConfig):
 		self.bam = sampleName+'.bam'
 		
 		#read config file
-		getConfig.__init__(cfgfile)
+		getConfig.__init__(self, cfgfile)
 		
 		
 	
@@ -204,13 +205,13 @@ class NGSTools(getConfig):
 		_mkdir(myOutdir)
 		
 		if self.fq1.endswith('.gz'):
-			cleanFq1 = re.sub(r'fq.gz$', 'clean.fq.gz', os.path.abs(self.fq1))
+			cleanFq1 = re.sub(r'fq.gz$', 'clean.fq.gz', os.path.abspath(self.fq1))
 		else:
 			cleanFq1 = re.sub(r'fq$', 'clean.fq', self.fq1)
 
 		if self.fq2 != '':
 			if self.fq2.endswith('.gz'):
-				cleanFq2 = re.sub(r'fq.gz$', 'clean.fq.gz', os.path.abs(self.fq2))
+				cleanFq2 = re.sub(r'fq.gz$', 'clean.fq.gz', os.path.abspath(self.fq2))
 			else:
 				cleanFq2 = re.sub(r'fq$', 'clean.fq', self.fq2)
 
@@ -250,7 +251,8 @@ class NGSTools(getConfig):
 		command += '\nmv %s/accepted_hits.bam %s' % (myOutdir, myOutdir+'/'+self.bam)
 		
 		writeCommands(command, myOutdir+'/tophat_'+self.sampleName+'.sh', run)
-		return myOutdir+'/'+self.bam
+		self.bam = myOutdir+'/'+self.bam
+		return self.bam
 
 
 	def bowtie2(self, mode='--local', run=True):
@@ -272,7 +274,8 @@ class NGSTools(getConfig):
 
 		writeCommands(command, myOutdir+'/bowtie2_'+self.sampleName+'.sh', run)
 
-		return myOutdir+'/'+self.bam
+		self.bam = myOutdir+'/'+self.bam
+		return self.bam
 		
 
 	def bwa(self, run=True):
@@ -299,8 +302,9 @@ class NGSTools(getConfig):
 		command += ' | %s view -bS - > %s' % (self.samtools, myOutdir+'/'+self.bam)
 
 		writeCommands(command, myOutdir+'/bwa_mem_'+self.sampleName+'.sh', run)
-
-		return myOutdir+'/'+self.bam
+	
+		self.bam = myOutdir+'/'+self.bam
+		return self.bam
 
 
 	def samtools_sort(self, run=True):
@@ -360,7 +364,7 @@ class NGSTools(getConfig):
 		command += '\nsamtools index '+rmdupBam
 
 		self.bam = rmdupBam
-		writeCommands(command, self.outdir+'/mapping/picard_rmdup_'+self.sampleName+'.sh', run)
+		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/picard_rmdup_'+self.sampleName+'.sh', run)
 
 		return self.bam
 
@@ -379,7 +383,7 @@ class NGSTools(getConfig):
 		countFile = re.sub(r'.bam$', '.counts', self.bam)
 		command = '%s %s -r pos -s no -f bam -a 10 %s > %s' % (self.python, self.htseq, self.bam, countFile)
 
-		writeCommands(command, self.outdir+'/mapping/htseq_count_'+self.sampleName+'.sh', run)
+		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/htseq_count_'+self.sampleName+'.sh', run)
 
 		return countFile
 
@@ -396,6 +400,7 @@ class NGSTools(getConfig):
 
 		command = '\\\n\t'.join(['java -Xmx5g -jar %s' % self.GATK,
 									'-T SplitNCigarReads',
+									'-I %s' % self.bam,
 									'--out %s' % outbam])
 		self.bam = outbam
 
@@ -517,14 +522,14 @@ sampleTable <- data.frame(sampleName=sampleFiles, fileName=sampleFiles, conditio
 
 ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 
-colData(ddsHTSeq)$condition<-factor(colData(ddsHTSeq)$condition, levels=c($C1,$C2))
+colData(ddsHTSeq)$condition<-factor(colData(ddsHTSeq)$condition, levels=c("$C1", "$C2"))
 
 dds <- DESeq(ddsHTSeq)
 res <- results(dds)
 res <- res[order(res$padj), ]
 
 resSig <- subset(res, padj < 0.1)
-write.table(as.data.frame(resSig), sep="\t", file=paste($outdir, "DESeq.out.xls", collapse="/"))
+write.table(as.data.frame(resSig), sep="\\t", file=paste($outdir, "DESeq.out.xls", collapse="/"))
 
 plotMA(dds, ylim=c(-2,2), main="deseq2")
 dev.copy(png, paste($outdir, "deseq2_MAplot.png", collapse="/")
@@ -537,16 +542,16 @@ dev.off()
 
 	sampleC = '"'
 	for i in sorted(sampleCountPath_Condition.keys()):
-		sampleC += sampleCountPath_Condition[i] + '",'
-	sampleC.rstrip(',') 
+		sampleC += sampleCountPath_Condition[i] + '","'
+	sampleC = sampleC[:-2] 
 
 	try:
-		(C1, C2) = set(sampleCondition)
+		(C1, C2) = set(sampleCountPath_Condition.values())
 	except:
 		print 'ERROR: condition must be 2.'
 
 	Rscript = Template(Rscript)
-	Rscript = Rscript.substitue(sampleF=sampleF, sampleC=sampleC, C1=C1, C2=C2, outdir=outdir)
+	Rscript = Rscript.safe_substitute(sampleF=sampleF, sampleC=sampleC, C1=C1, C2=C2, outdir=outdir)
 
 	return Rscript
 

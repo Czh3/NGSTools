@@ -1,6 +1,6 @@
 #-*- coding: UTF-8 -*-
 import sys
-#sys.path.append('/home/zhangc/bin/git/TEST')
+sys.path.append('/home/zhangc/bin/git/TEST')
 
 import NGSTools
 import argparse
@@ -109,7 +109,7 @@ for line in open(args.sampleList):
 		if GATK:
 
 			# remove duplicates
-			mySample.rmdup(run = _run)
+			mySample.picard_rmdup(run = _run)
 
 			# splitN
 			mySample.splitN(run = _run)
@@ -194,7 +194,7 @@ if DEXSeq:
 if GATK:
 	# GATK HC (in RNA-seq mode) call variations
 	outdir = os.path.join(args.outDir, 'variation')
-	NGSTool._mkdir(outdir)
+	NGSTools._mkdir(outdir)
 
 	for condition in set(finalBam.values()):
 		bams = []
@@ -203,29 +203,25 @@ if GATK:
 			if finalBam[bam] == condition:
 				bams.append(bam)
 
-		out = os.path.join(outdir + condition)
+		out = os.path.join(outdir, condition)
 		NGSTools._mkdir(out)
 
-
 		mergedBam = '%s/%s.bam' % (out, condition)
-		script = NGSTools.picard_merge(bams, mergedBam, cfg.picard)
+		script = NGSTools.picard_merge(bams, mergedBam, cfg)
 
-		with open('%s/picard_merge_%s.sh' % (out, condition), 'w') as shell:
-			shell.write(script)
+		NGSTools.writeCommands(command, '%s/picard_merge_%s.sh' % (out, condition), _run)
 
 
 		script = NGSTools.GATK_HC(mergedBam, cfg, out, condition)
 
-		with open('%s/gatk_HC_%s.sh' % (out, condition), 'w') as shell:
-			shell.write(script)
+		NGSTools.writeCommands(command, '%s/gatk_HC_%s.sh' % (out, condition), _run)	
 
 
 		rawVcf = '%s/%s.raw.snps.indels.vcf' % (out, condition)
 		fltVcf = '%s/%s.flt.snps.indels.vcf' % (out, condition)
 		script = NGSTools.GATK_filter(mergedBam, rawVcf, fltVcf, cfg)
 
-		with open('%s/gatk_HC_%s.sh' % (out, condition), 'w') as shell:
-			shell.write(script)
+		NGSTools.writeCommands(command, '%s/gatk_filter_%s.sh' % (out, condition), _run) 
 
 
 
