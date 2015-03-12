@@ -66,6 +66,9 @@ for line in open(args.sampleList):
 	if line.startswith('#'):
 		continue
 
+	if line == '\n':
+		continue
+
 	cols = line.strip().split('\t')
 	sample = {
 		'name' : cols[0],
