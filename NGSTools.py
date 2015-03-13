@@ -155,6 +155,7 @@ class getConfig:
 		getConfig.htseq = config.get('tools', 'htseq-count')
 		getConfig.samtools = config.get('tools', 'samtools')
 		getConfig.GATK = config.get('tools', 'GATK')
+		getConfig.fastx = config.get('tools', 'fastx')
 
 		getConfig.dbsnp = config.get('resource', 'dbsnp')
 		getConfig.know_indel = config.get('resource', 'know_indel')
@@ -205,15 +206,15 @@ class NGSTools(getConfig):
 		_mkdir(myOutdir)
 		
 		if self.fq1.endswith('.gz'):
-			cleanFq1 = re.sub(r'fq.gz$', 'clean.fq.gz', os.path.abspath(self.fq1))
+			cleanFq1 = re.sub(r'fq.gz$', 'rmAD.fq', os.path.abspath(self.fq1))
 		else:
-			cleanFq1 = re.sub(r'fq$', 'clean.fq', self.fq1)
+			cleanFq1 = re.sub(r'fq$', 'rmAD.fq', self.fq1)
 
 		if self.fq2 != '':
 			if self.fq2.endswith('.gz'):
-				cleanFq2 = re.sub(r'fq.gz$', 'clean.fq.gz', os.path.abspath(self.fq2))
+				cleanFq2 = re.sub(r'fq.gz$', 'rmAD.fq', os.path.abspath(self.fq2))
 			else:
-				cleanFq2 = re.sub(r'fq$', 'clean.fq', self.fq2)
+				cleanFq2 = re.sub(r'fq$', 'rmAD.fq', self.fq2)
 
 		if self.fq2 != '':
 			command1 = 'cutadapt -a %s -e 0.01 -m 30 -O 5 -q 15 -o %s %s' % (adapter5, cleanFq2, self.fq2)
@@ -225,6 +226,23 @@ class NGSTools(getConfig):
 		self.fq1 = cleanFq1
 		
 		writeCommands(command1+'\n'+command2, myOutdir+'/cutadapter_'+self.sampleName+'.sh', run)
+
+	def fastx_lowQual(self, q=5, p=50, run=True):
+		''' remove low quality reads by fastx '''
+
+		myOutdir = self.outdir+'/qc/'+self.sampleName
+		_mkdir(myOutdir)
+	
+		cleanFq1 = re.sub(r'fq$', 'highQ.fq.gz', self.fq1)
+		command = '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\n' % (self.fastx, q, p, self.fq1, cleanFq1)
+		
+		cleanFq2 = re.sub(r'fq$', 'highQ.fq.gz', self.fq2)
+		command += '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s' % (self.fastx, q, p, self.fq2, cleanFq2)
+
+		writeCommands(command, myOutdir+'/rm_lowQ_'+self.sampleName+'.sh', run)
+	
+		self.fq1 = cleanFq1
+		self.fq2 = cleanFq2
 
 
 	def fastqc(self, run=True):

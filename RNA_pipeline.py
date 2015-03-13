@@ -90,6 +90,7 @@ for line in open(args.sampleList):
 		###### 1.1 cut adapter ######
 		if args.dataType == 'raw':
 			mySample.cutadapter(run = _run)
+			mySample.fastx_lowQual(run = _run)
 		else:
 			pass
 
