@@ -6,7 +6,7 @@ import NGSTools
 import argparse
 import os
 
-from multiprocessing import Process
+from multiprocessing import Process, Manager
 
 #argparse arguments
 parser = argparse.ArgumentParser(description='A pipeline of RNA_seq data analysis. <zhangchao3@hotmail.com>')
@@ -55,17 +55,14 @@ if args.debug:
 else:
 	_run = True
 
-condition = {}
-transcripts = []
-countsFiles = {}
-finalBam = {}
+
 
 ##
 cfg = NGSTools.getConfig(os.path.abspath(args.config))
 
 
 
-def processSample(line):
+def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 	cols = line.strip().split('\t')
 	sample = {
@@ -147,6 +144,14 @@ def processSample(line):
 
 
 
+
+# process communication
+mng = Manager()
+condition = mng.dict()
+transcripts = mng.list()
+countsFiles = mng.dict()
+finalBam = mng.dict()
+
 # multi-process
 record = []
 
@@ -156,7 +161,7 @@ for line in open(args.sampleList):
 	
 	sampleName = line.split('\t')[0]
 
-	P = Process(name=sampleName, target=processSample, args=(line,))
+	P = Process(name=sampleName, target=processSample, args=(line, condition, transcripts, countsFiles, finalBam, ))
 	P.start()
 
 	record.append(P)
@@ -164,13 +169,13 @@ for line in open(args.sampleList):
 for P in record:
 	P.join()
 
-
-
+print condition
 
 
 ########################  DEGs calling ########################
 if Cufflinks:
 	# cuffmerge #
+	cuffdir = os.path.join(args.outDir, 'cufflinks')
 	with open(cuffdir+'/assemblies.txt', 'w') as writer:
 		writer.write('\n'.join(transcripts))
 
