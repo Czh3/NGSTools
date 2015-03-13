@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- encoding=utf8 -*-
 import sys
 sys.path.append('/home/zhangc/bin/git/TEST')
 
@@ -66,11 +66,6 @@ cfg = NGSTools.getConfig(os.path.abspath(args.config))
 
 
 def processSample(line):
-	if line.startswith('#'):
-		continue
-
-	if line == '\n':
-		continue
 
 	cols = line.strip().split('\t')
 	sample = {
@@ -156,9 +151,12 @@ def processSample(line):
 record = []
 
 for line in open(args.sampleList):
+	if line.startswith('#') or line == '\n':
+		continue
+	
 	sampleName = line.split('\t')[0]
 
-	P = Process(name=sampleName, target=processSample, args=(line))
+	P = Process(name=sampleName, target=processSample, args=(line,))
 	P.start()
 
 	record.append(P)
