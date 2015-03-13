@@ -6,6 +6,8 @@ import NGSTools
 import argparse
 import os
 
+from multiprocessing import Process
+
 #argparse arguments
 parser = argparse.ArgumentParser(description='A pipeline of RNA_seq data analysis. <zhangchao3@hotmail.com>')
 parser.add_argument('-s', '--sampleList', help='sample list for RNA samples information:\nOne line per sample:\nsampleName\tsampleCondition\tfastq1Path\tfastq2Path', required=True)
@@ -62,7 +64,8 @@ finalBam = {}
 cfg = NGSTools.getConfig(os.path.abspath(args.config))
 
 
-for line in open(args.sampleList):
+
+def processSample(line):
 	if line.startswith('#'):
 		continue
 
@@ -145,6 +148,26 @@ for line in open(args.sampleList):
 		##### 4. DESeq2 #####
 		count = mySample.HTSeq_count(run = _run)
 		countsFiles[count] = sample['condition']
+
+
+
+
+# multi-process
+record = []
+
+for line in open(args.sampleList):
+	sampleName = line.split('\t')[0]
+
+	P = Process(name=sampleName, target=processSample, args=(line))
+	P.start()
+
+	record.append(P)
+
+for P in record:
+	P.join()
+
+
+
 
 
 ########################  DEGs calling ########################
