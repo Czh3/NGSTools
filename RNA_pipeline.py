@@ -169,7 +169,6 @@ for line in open(args.sampleList):
 for P in record:
 	P.join()
 
-print condition
 
 
 ########################  DEGs calling ########################
@@ -190,7 +189,7 @@ if Cufflinks:
 		cuffBam[c] = ','.join(condition[c].values())
 
 	if len(cuffCondition) != 2:
-		sys.exit('Error: condition')
+		print 'WARNING: condition'
 
 	command = 'cuffdiff -o %s -b %s -p 10 -L %s -u %s %s %s' % (cuffdir+'/cuffdiff', cfg.genome, cuffCondition[0]+','+cuffCondition[1], cuffdir+'/merged_asm/merged.gtf', cuffBam[cuffCondition[0]], cuffBam[cuffCondition[1]])
 	NGSTools.writeCommands(command, cuffdir+'/cuffdiff.sh', _run)
