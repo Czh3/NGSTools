@@ -2,9 +2,9 @@
 
 Author: Czh3 <zhangchao3@hotmail.com>
 
-High-throughput sequencing technology is repaidly becoming the standrd method for genomics, transcriptomic and epigenetics. The down stream data analysis is sophisticated because of the unprecedented data throughput. This NGSTools helps you to do this by writing a few line of scripts.
+  High-throughput sequencing technology is repaidly becoming the standrd method for genomics, transcriptomic and epigenetics. The down stream data analysis is sophisticated because of the unprecedented data throughput. This NGSTools helps you to do this easily by writing a few line of scripts.
 
-For illumina sequencing platform:
+###For illumina sequencing platform:
 * Hiseq 2000
 * Hiseq 2500
 * HiseqX-Ten/Five
@@ -12,7 +12,7 @@ For illumina sequencing platform:
 * Hiseq 4000
 * Miseq
 
-Based on:
+###Based on:
 * python::Bio
 * fastqc
 * fastx
