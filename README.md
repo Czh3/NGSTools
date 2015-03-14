@@ -29,13 +29,13 @@ This Frame help you to build your own pipeline easily.
 
 Here is a example of RNA-sequencing pipeline.
 
-...bash
+```bash
 python2.7 ~/bin/NGSTools/RNA_pipeline.py --sampleList sample.list\
 	-d raw  -o pipe_out -c ~/.mouse.cfg\
 	-a 1,2
-...
+```
 
-...bash
+```bash
 python RNA_pipeline.py -h
 usage: RNA_pipeline.py [-h] -s SAMPLELIST [-o OUTDIR] [-d {raw,clean}]
                        [-a ANALYSIS] [-c CONFIG] [--debug DEBUG]
@@ -65,6 +65,6 @@ optional arguments:
   -c CONFIG, --config CONFIG
                         the config file of NGSTools package.
   --debug DEBUG         debug mode
-...
+```
 
 
