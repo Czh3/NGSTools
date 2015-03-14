@@ -9,13 +9,39 @@ import os
 from multiprocessing import Process, Manager
 
 #argparse arguments
-parser = argparse.ArgumentParser(description='A pipeline of RNA_seq data analysis. <zhangchao3@hotmail.com>')
-parser.add_argument('-s', '--sampleList', help='sample list for RNA samples information:\nOne line per sample:\nsampleName\tsampleCondition\tfastq1Path\tfastq2Path', required=True)
-parser.add_argument('-o', '--outDir', help='output dir', default='out')
-parser.add_argument('-d', '--dataType', help='fastq data type:raw data or clean data. if (clean data): not run cutadapter', choices=['raw', 'clean'], default='clean')
-parser.add_argument('-a', '--analysis', help='analysis of the pipeline to do.[1:QC, 2:Mapping, 3:Cufflinks, 4:DESeq2, 5:DEXSeq, 6:GATK]', default='1,2,4')
-parser.add_argument('-c', '--config', help='the config file of NGSTools package.', default='~/.NGSTools.cfg')
-parser.add_argument('--debug', help='debug mode', default=False)
+parser = argparse.ArgumentParser(description='A pipeline of RNA_seq data analysis. <zhangchao3@hotmail.com>',
+								formatter_class=argparse.RawTextHelpFormatter)
+
+parser.add_argument('-s', '--sampleList',
+					help="sample list for RNA samples information.\n"
+					" A file each line contains:\n"
+					"sampleName\tsampleCondition\tfastq1Path\tfastq2Path",
+					required=True)
+parser.add_argument('-o', '--outDir',
+					help='The pipeline output dir',
+					default='out')
+parser.add_argument('-d', '--dataType',
+					help='fastq data type:\n'
+					'raw data or clean data.\n'
+					' if (clean data): not run cutadapter',
+					choices=['raw', 'clean'],
+					default='clean')
+parser.add_argument('-a', '--analysis',
+					help='analysis of the pipeline to do.\n'
+					'Here is some software to choose to analy\n'
+					'[1:QC, quality control\n'
+					' 2:Mapping, align the reads to reference genome\n'
+					' 3:Cufflinks, assemble with cufflinkes'
+					' 4:DESeq2, call DEGs(different expression genes) using DESeq2 package\n'
+					' 5:DEXSeq, call DEUs(different exon usages) using DEXSeq package\n'
+					' 6:GATK, call SNP on mRNA using GATK]',
+					default='1,2')
+parser.add_argument('-c', '--config',
+					help='the config file of NGSTools package.',
+					default='~/.NGSTools.cfg')
+parser.add_argument('--debug',
+					help='debug mode',
+					default=False)
 args = parser.parse_args()
 
 

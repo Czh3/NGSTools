@@ -21,15 +21,15 @@ def main():
 	if len(sys.argv) < 2:
 		usage()
 
-	num = 0
+	defaultLineNumber = 0
 	for line in open(sys.argv[1]):
-		num += 1
-		if not num % 4:
+		defaultLineNumber += 1
+		if defaultLineNumber % 4 == 0:
 			if search(r'\d', line):
 				print '\n*** encoding: phred+33 ***'
 				break
 
-		if num > 10000:
+		if defaultLineNumber > 10000:
 			print '\n*** encoding: phred+64 ***'
 
 
