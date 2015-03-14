@@ -270,7 +270,7 @@ class NGSTools(getConfig):
 		self.fq2 = cleanFq2
 
 
-	def fastqc(self, run=True):
+	def QC_fastqc(self, run=True):
 		'''quality control'''
 		
 		myOutdir = self.outdir+'/qc/'+self.sampleName

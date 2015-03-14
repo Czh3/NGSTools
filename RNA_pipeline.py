@@ -116,7 +116,7 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 			pass
 
 		##### 1.2 fastqc #####
-		mySample.fastqc(run = _run)
+		mySample.QC_fastqc(run = _run)
 	
 	
 	if Mapping:
