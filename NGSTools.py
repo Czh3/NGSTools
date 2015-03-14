@@ -234,10 +234,10 @@ class NGSTools(getConfig):
 		_mkdir(myOutdir)
 	
 		cleanFq1 = re.sub(r'fq$', 'highQ.fq.gz', self.fq1)
-		command = '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\n' % (self.fastx, q, p, self.fq1, cleanFq1)
+		command = '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\nrm %s' % (self.fastx, q, p, self.fq1, cleanFq1, self.fq1)
 		
 		cleanFq2 = re.sub(r'fq$', 'highQ.fq.gz', self.fq2)
-		command += '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s' % (self.fastx, q, p, self.fq2, cleanFq2)
+		command += '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\nrm %s' % (self.fastx, q, p, self.fq2, cleanFq2, self.fq2)
 
 		writeCommands(command, myOutdir+'/rm_lowQ_'+self.sampleName+'.sh', run)
 	
