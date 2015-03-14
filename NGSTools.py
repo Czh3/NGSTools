@@ -156,6 +156,8 @@ class getConfig:
 		getConfig.samtools = config.get('tools', 'samtools')
 		getConfig.GATK = config.get('tools', 'GATK')
 		getConfig.fastx = config.get('tools', 'fastx')
+		getConfig.cutadapt = config.get('tools', 'cutadapt')
+		getConfig.fastqc = config.get('tools', 'fastqc')
 
 		getConfig.dbsnp = config.get('resource', 'dbsnp')
 		getConfig.know_indel = config.get('resource', 'know_indel')
@@ -163,7 +165,7 @@ class getConfig:
 
 class NGSTools(getConfig):
 	
-	def __init__(self, sampleName, outdir, fq1, fq2='', quanlityBase='32', cfgfile='~/.NGSTools.cfg'):
+	def __init__(self, sampleName, outdir, fq1, fq2='-', qualityBase='32', cfgfile='~/.NGSTools.cfg'):
 
 		self.sampleName = sampleName
 		self.outdir = os.path.abspath(outdir)
@@ -179,7 +181,8 @@ class NGSTools(getConfig):
 
 		assert not os.system('ln -sf %s %s' % (fq1, self.fq1))
 
-		if fq2 != '':
+		# PE reads or SE reads
+		if fq2 != '-':
 			assert isFile(fq2)
 			if fq2.endswith('.gz'):
 				self.fq2 = self.outdir+'/data/'+sampleName+'/'+sampleName+'.2.fq.gz'
@@ -189,7 +192,7 @@ class NGSTools(getConfig):
 		else:
 			self.fq2 = ''
 
-		self.quanlityBase = quanlityBase
+		self.qualityBase = qualityBase
 		
 		self.bam = sampleName+'.bam'
 		
@@ -217,30 +220,52 @@ class NGSTools(getConfig):
 				cleanFq2 = re.sub(r'fq$', 'rmAD.fq', self.fq2)
 
 		if self.fq2 != '':
-			command1 = 'cutadapt -a %s -e 0.01 -m 30 -O 5 -q 15 -o %s %s' % (adapter5, cleanFq2, self.fq2)
+			# pair-end reads:
+			tmpFq1 = re.sub(r'.fq', '.tmp.fq', cleanFq1)
+			tmpFq2 = re.sub(r'.fq', '.tmp.fq', cleanFq2)
+			command = '\\\n\t'.join(['%s -q 10 -a %s ' % (self.cutadapt, adapter3),
+										'--minimum-length 30 -O 7 ',
+										'--quality-base %s ' % self.qualityBase,
+										'-o %s ' % tmpFq1,
+										'-p %s ' % tmpFq2,
+										'%s %s ' % (self.fq1, self.fq2)
+									])
+			command += '\n' + '\\\n\t'.join(['%s -q 15 -a %s ' % (self.cutadapt, adapter5),
+										'--minimum-length 30 -O 7 ',
+										'--quality-base %s ' % self.qualityBase,
+										'-o %s ' % cleanFq2,
+										'-p %s ' % cleanFq1,
+										'%s %s ' % (tmpFq1, tmpFq2)
+									])
+			command += '\nrm %s %s' % (tmpFq1, tmpFq2)
+			self.fq1 = cleanFq1
 			self.fq2 = cleanFq2
 		else:
-			command1 = ''
-
-		command2 = 'cutadapt -a %s -e 0.01 -m 30 -O 5 -q 10 -o %s %s' % (adapter3, cleanFq1, self.fq1)
-		self.fq1 = cleanFq1
+			# Single-end reads
+			command = '\\\n\t'.join(['%s -q 10  -O 7 ' % self.cutadapt,
+										'--quality-base %s ' % self.qualityBase,
+										'-a %s ' % adapter3,
+										'-o %s ' % cleanFq1
+									])
+			self.fq1 = cleanFq1
 		
-		writeCommands(command1+'\n'+command2, myOutdir+'/cutadapter_'+self.sampleName+'.sh', run)
+		writeCommands(command, myOutdir+'/cutadapter_'+self.sampleName+'.sh', run)
+
 
 	def fastx_lowQual(self, q=5, p=50, run=True):
 		''' remove low quality reads by fastx '''
-
+		
 		myOutdir = self.outdir+'/qc/'+self.sampleName
 		_mkdir(myOutdir)
-	
+		
 		cleanFq1 = re.sub(r'fq$', 'highQ.fq.gz', self.fq1)
-		command = '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\nrm %s' % (self.fastx, q, p, self.fq1, cleanFq1, self.fq1)
+		command = '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\nrm %s\n' % (self.fastx, q, p, self.fq1, cleanFq1, self.fq1)
 		
 		cleanFq2 = re.sub(r'fq$', 'highQ.fq.gz', self.fq2)
 		command += '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\nrm %s' % (self.fastx, q, p, self.fq2, cleanFq2, self.fq2)
-
+		
 		writeCommands(command, myOutdir+'/rm_lowQ_'+self.sampleName+'.sh', run)
-	
+		
 		self.fq1 = cleanFq1
 		self.fq2 = cleanFq2
 
@@ -251,7 +276,7 @@ class NGSTools(getConfig):
 		myOutdir = self.outdir+'/qc/'+self.sampleName
 		_mkdir(myOutdir)
 
-		command = 'fastqc -o %s -t 6 -d %s %s %s' % (myOutdir, myOutdir, self.fq1, self.fq2)
+		command = '%s -o %s -t 6 -d %s %s %s' % (self.fastqc, myOutdir, myOutdir, self.fq1, self.fq2)
 		writeCommands(command, myOutdir+'/fastqc_'+self.sampleName+'.sh', run)
 
 
@@ -262,7 +287,7 @@ class NGSTools(getConfig):
 		_mkdir(myOutdir)
 
 		_phredQual = ''
-		if self.quanlityBase == '64':
+		if self.qualityBase == '64':
 			_phredQual = '--phred64-quals'
 
 		command = 'tophat -p 6 -G %s %s -o %s %s %s %s' % (self.gtf, _phredQual, myOutdir, self.bowtie2Index, self.fq1, self.fq2)
@@ -280,7 +305,7 @@ class NGSTools(getConfig):
 		_mkdir(myOutdir)
 
 		_phredQual = ''
-		if self.quanlityBase == '64':
+		if self.qualityBase == '64':
 			_phredQual = '--phred64'
 
 		command = 'bowtie2 %s -x %s -p 6 %s -1 %s ' % (_phredQual, self.bowtie2Index, mode, self.fq1)
@@ -302,7 +327,7 @@ class NGSTools(getConfig):
 		myOutdir = self.outdir+'/mapping'
 		_mkdir(myOutdir)
 
-		if self.quanlityBase == '64':
+		if self.qualityBase == '64':
 			print "The BWA-MEM does not support the phred64 scaling. Need to convert."
 			if run:
 				print "\tConverting to phred33."
@@ -395,11 +420,14 @@ class NGSTools(getConfig):
 		writeCommands(command, self.outdir+'/mapping/samtools_idxstats_'+self.sampleName+'.sh', run)
 
 
-	def HTSeq_count(self, run=True):
+	def HTSeq_count(self, bam='', run=True):
 		'''count reads with HTSeq '''
 
-		countFile = re.sub(r'.bam$', '.counts', self.bam)
-		command = '%s %s -r pos -s no -f bam -a 10 %s > %s' % (self.python, self.htseq, self.bam, countFile)
+		if bam == '':
+			bam = self.bam
+
+		countFile = re.sub(r'.bam$', '.counts', bam)
+		command = '%s %s -r pos -s no -f bam -a 10 %s > %s' % (self.python, self.htseq,  bam, countFile)
 
 		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/htseq_count_'+self.sampleName+'.sh', run)
 
