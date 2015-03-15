@@ -31,7 +31,7 @@ parser.add_argument('-a', '--analysis',
 					'Here is some software to choose to analy\n'
 					'[1:QC, quality control\n'
 					' 2:Mapping, align the reads to reference genome\n'
-					' 3:Cufflinks, assemble with cufflinkes'
+					' 3:Cufflinks, assemble with cufflinkes\n'
 					' 4:DESeq2, call DEGs(different expression genes) using DESeq2 package\n'
 					' 5:DEXSeq, call DEUs(different exon usages) using DEXSeq package\n'
 					' 6:GATK, call SNP on mRNA using GATK]',
@@ -111,7 +111,7 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 		###### 1.1 cut adapter ######
 		if args.dataType == 'raw':
 			mySample.cutadapter(run = _run)
-			mySample.fastx_lowQual(run = _run)
+			mySample.rm_lowQual(run = _run)
 		else:
 			pass
 

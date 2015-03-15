@@ -25,7 +25,7 @@ Author: Czh3 <zhangchao3@hotmail.com>
 * DEseq2
 
 
-This Frame help you to build your own pipeline easily.
+This package help you to build your own pipeline easily.
 
 Here is a example of RNA-sequencing pipeline.
 
@@ -59,7 +59,8 @@ optional arguments:
                         Here is some software to choose to analy
                         [1:QC, quality control
                          2:Mapping, align the reads to reference genome
-                         3:Cufflinks, assemble with cufflinkes 4:DESeq2, call DEGs(different expression genes) using DESeq2 package
+                         3:Cufflinks, assemble with cufflinkes 
+						 4:DESeq2, call DEGs(different expression genes) using DESeq2 package
                          5:DEXSeq, call DEUs(different exon usages) using DEXSeq package
                          6:GATK, call SNP on mRNA using GATK]
   -c CONFIG, --config CONFIG

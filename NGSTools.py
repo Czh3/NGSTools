@@ -209,20 +209,20 @@ class NGSTools(getConfig):
 		_mkdir(myOutdir)
 		
 		if self.fq1.endswith('.gz'):
-			cleanFq1 = re.sub(r'fq.gz$', 'rmAD.fq', os.path.abspath(self.fq1))
+			cleanFq1 = re.sub(r'fq.gz$', 'rmAD.fq.gz', os.path.abspath(self.fq1))
 		else:
-			cleanFq1 = re.sub(r'fq$', 'rmAD.fq', self.fq1)
+			cleanFq1 = re.sub(r'fq$', 'rmAD.fq.gz', self.fq1)
 
 		if self.fq2 != '':
 			if self.fq2.endswith('.gz'):
-				cleanFq2 = re.sub(r'fq.gz$', 'rmAD.fq', os.path.abspath(self.fq2))
+				cleanFq2 = re.sub(r'fq.gz$', 'rmAD.fq.gz', os.path.abspath(self.fq2))
 			else:
-				cleanFq2 = re.sub(r'fq$', 'rmAD.fq', self.fq2)
+				cleanFq2 = re.sub(r'fq$', 'rmAD.fq.gz', self.fq2)
 
 		if self.fq2 != '':
 			# pair-end reads:
-			tmpFq1 = re.sub(r'.fq', '.tmp.fq', cleanFq1)
-			tmpFq2 = re.sub(r'.fq', '.tmp.fq', cleanFq2)
+			tmpFq1 = re.sub(r'.fq.gz', '.tmp.fq', cleanFq1)
+			tmpFq2 = re.sub(r'.fq.gz', '.tmp.fq', cleanFq2)
 			command = '\\\n\t'.join(['%s -q 10 -a %s ' % (self.cutadapt, adapter3),
 										'--minimum-length 30 -O 7 ',
 										'--quality-base %s ' % self.qualityBase,
@@ -255,12 +255,15 @@ class NGSTools(getConfig):
 	def fastx_lowQual(self, q=5, p=50, run=True):
 		''' remove low quality reads by fastx '''
 		
+		#!!! this function now is discard !!!
 		myOutdir = self.outdir+'/qc/'+self.sampleName
 		_mkdir(myOutdir)
 		
 		cleanFq1 = re.sub(r'fq$', 'highQ.fq.gz', self.fq1)
 		command = '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\nrm %s\n' % (self.fastx, q, p, self.fq1, cleanFq1, self.fq1)
-		
+
+		# NOTICE: the fastq_quality_filter input fq file must be unzipped		
+
 		cleanFq2 = re.sub(r'fq$', 'highQ.fq.gz', self.fq2)
 		command += '%s/fastq_quality_filter -q %s -p %s -z -i %s -o %s\nrm %s' % (self.fastx, q, p, self.fq2, cleanFq2, self.fq2)
 		
@@ -268,6 +271,41 @@ class NGSTools(getConfig):
 		
 		self.fq1 = cleanFq1
 		self.fq2 = cleanFq2
+
+
+	def rm_lowQual(self, q=5, p=50, a=0, run=True):
+		''' remove low quality reads by qualityControl.py '''
+
+		myOutdir = self.outdir+'/qc/'+self.sampleName
+		_mkdir(myOutdir)
+
+		if self.fq2 != '':
+			# Pair-end reads
+
+			cleanFq1 = re.sub(r'fq.gz$', 'highQ.fq.gz', self.fq1)
+			cleanFq2 = re.sub(r'fq.gz$', 'highQ.fq.gz', self.fq2)
+
+			command = '\\\n\t'.join(['%s qualityControl.py -1 %s ' % (self.python, self.fq1),
+									'-2 %s ' % self.fq2,
+									'-q %s -p %s -a %s ' % (q, p, a),
+									'-o1 %s ' % cleanFq1,
+									'-o2 %s ' % cleanFq2])
+		
+			self.fq1 = cleanFq1
+			self.fq2 = cleanFq2
+
+		else:
+			# Single-end reads:
+
+			cleanFq1 = re.sub(r'fq.gz$', 'highQ.fq.gz', self.fq1)
+
+			command = '\\\n\t'.join(['%s qualityControl.py -1 %s ' % (self.python, self.fq1),
+									'-q %s -p %s -a %s ' % (q, p, a),
+									'-o1 %s ' % cleanFq1])
+
+			self.fq1 = cleanFq1
+
+		writeCommands(command, myOutdir+'/rm_lowQ_'+self.sampleName+'.sh', run)
 
 
 	def QC_fastqc(self, run=True):
