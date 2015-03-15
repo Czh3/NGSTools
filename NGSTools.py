@@ -162,6 +162,7 @@ class getConfig:
 		getConfig.dbsnp = config.get('resource', 'dbsnp')
 		getConfig.know_indel = config.get('resource', 'know_indel')
 
+		getConfig.NGSTools = config.get('NGSTools', 'NGSTools')
 
 class NGSTools(getConfig):
 	
@@ -285,7 +286,7 @@ class NGSTools(getConfig):
 			cleanFq1 = re.sub(r'fq.gz$', 'highQ.fq.gz', self.fq1)
 			cleanFq2 = re.sub(r'fq.gz$', 'highQ.fq.gz', self.fq2)
 
-			command = '\\\n\t'.join(['%s qualityControl.py -1 %s ' % (self.python, self.fq1),
+			command = '\\\n\t'.join(['%s %s/qualityControl.py -1 %s ' % (self.python, self.NGSTools, self.fq1),
 									'-2 %s ' % self.fq2,
 									'-q %s -p %s -a %s ' % (q, p, a),
 									'-o1 %s ' % cleanFq1,
