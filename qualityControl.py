@@ -115,12 +115,12 @@ if __name__ == '__main__':
 		fastq1SeqIO = SeqIO.parse(fastq1handle, fastqFormat)
 		fastq2SeqIO = SeqIO.parse(fastq2handle, fastqFormat)
 		while True:
-			fastq1record = fastq1SeqIO.next()
-
-			# end of the loop
-			if not fastq1record:
+			try:
+				fastq1record = fastq1SeqIO.next()
+				fastq2record = fastq2SeqIO.next()
+			except:
 				break
-			fastq2record = fastq2SeqIO.next()
+			
 
 			phredQualityList1 = fastq1record.letter_annotations['phred_quality']
 			phredQualityList2 = fastq2record.letter_annotations['phred_quality']
