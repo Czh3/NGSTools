@@ -292,6 +292,7 @@ class NGSTools(getConfig):
 									'-o1 %s ' % cleanFq1,
 									'-o2 %s ' % cleanFq2])
 		
+			command += '\n' + 'rm %s %s' % (self.fq1, self.fq2)
 			self.fq1 = cleanFq1
 			self.fq2 = cleanFq2
 
@@ -304,6 +305,7 @@ class NGSTools(getConfig):
 									'-q %s -p %s -a %s ' % (q, p, a),
 									'-o1 %s ' % cleanFq1])
 
+			command += '\n' + 'rm %s' % self.fq1
 			self.fq1 = cleanFq1
 
 		writeCommands(command, myOutdir+'/rm_lowQ_'+self.sampleName+'.sh', run)
