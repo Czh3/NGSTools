@@ -403,20 +403,12 @@ class NGSTools(getConfig):
 		return self.bam
 
 
-	def picard_merge(self, bamsList, mergedSamplesName, run=True):
+	def picard_mergebam(self, bamsList, mergedSamplesName, run=True):
 		'''merge bam with picard'''
 
 		mergeBam = self.outdir+'/mapping/%s.bam' % mergedSamplesName
 
-		command = '\\\n\t'.join(['java -Xmx5g -jar %s/MergeSamFiles.jar' % self.picard,
-								 'INPUT='+' INPUT='.join(bamsList),
-								 'OUTPUT='+mergeBam,
-								 'TMP_DIR='+self.outdir,
-								 'USE_THREADING=true',
-								 'SORT_ORDER=coordinate',
-								 'VALIDATION_STRINGENCY=SILENT',
-								 'MAX_RECORDS_IN_RAM=5000000'])
-		command += '\nsamtools index '+mergeBam
+		command = picard_merge(bamList, mergeBam, self)
 
 		self.bam = mergeBam
 		writeCommands(command, self.outdir+'/maping/picard_mergebam_'+self.sampleName+'.sh', run)
@@ -579,13 +571,17 @@ class NGSTools(getConfig):
 
 		return self.rawVcf
 
-	def filter(self, ):
+	def filter(self, run=True):
 
 		outdir = os.path.join(self.outdir, 'variation', self.sampleName)
 		_mkdir(outdir)
 
+
 		self.fltVcf = '%s/%s.flt.snps.indels.vcf' % (outdir, self.sampleName)
-		GATK_filter(self.bam, self.rawVcf, self.fltVcf, self)
+		
+		command = GATK_filter(self.bam, self.rawVcf, self.fltVcf, self)
+
+		writeCommands(command, outdir+'/gatk_filter_'+self.sampleName+'.sh', run)
 
 		return self.fltVcf
 
