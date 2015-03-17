@@ -147,6 +147,7 @@ class getConfig:
 		config.read(cfgfile)
 		
 		getConfig.genome = config.get('genome', 'fasta')
+		getConfig.genomeFai = config.get('genome', 'genomeFai')
 		getConfig.bowtie2Index = config.get('genome', 'bowtie2Index')
 		getConfig.gtf = config.get('genome', 'gtf')
 
@@ -364,7 +365,7 @@ class NGSTools(getConfig):
 		if self.fq2 != '':
 			command += ' -2 %s ' % self.fq2
 
-		command += '| %s view -bS -h - > %s' % (self.samtools, myOutdir+'/'+self.bam)
+		command += '| %s view -bS -h -t %s - > %s' % (self.samtools, self.genomeFai, myOutdir+'/'+self.bam)
 
 		writeCommands(command, myOutdir+'/bowtie2_'+self.sampleName+'.sh', run)
 
@@ -393,7 +394,7 @@ class NGSTools(getConfig):
 		if self.fq2 != '':
 			command += self.fq2
 
-		command += ' | %s view -bS - > %s' % (self.samtools, myOutdir+'/'+self.bam)
+		command += ' | %s view -bS -t %s - > %s' % (self.samtools, self.genomeFai, myOutdir+'/'+self.bam)
 
 		writeCommands(command, myOutdir+'/bwa_mem_'+self.sampleName+'.sh', run)
 	
