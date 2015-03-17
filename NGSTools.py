@@ -158,6 +158,8 @@ class getConfig:
 		getConfig.fastx = config.get('tools', 'fastx')
 		getConfig.cutadapt = config.get('tools', 'cutadapt')
 		getConfig.fastqc = config.get('tools', 'fastqc')
+		getConfig.bowtie2 = config.get('tools', 'bowtie2')
+		getConfig.tophat2 = config.get('tools', 'tophat2')
 
 		getConfig.dbsnp = config.get('resource', 'dbsnp')
 		getConfig.know_indel = config.get('resource', 'know_indel')
@@ -331,7 +333,13 @@ class NGSTools(getConfig):
 		if self.qualityBase == '64':
 			_phredQual = '--phred64-quals'
 
-		command = 'tophat -p 6 -G %s %s -o %s %s %s %s' % (self.gtf, _phredQual, myOutdir, self.bowtie2Index, self.fq1, self.fq2)
+		command = '\\\n\t'.join(['%s -p 6' % self.tophat2,
+								'-G %s %s' % (self.gtf, _phredQual),
+								'--rg-d %s' % self.sampleName,
+								'--rg-sample %s' % self.sampleName,
+								'--rg-library %s' % self.sampleName,
+								'-o %s %s %s %s' % (myOutdir, self.bowtie2Index, self.fq1, self.fq2)])
+
 		command += '\nmv %s/accepted_hits.bam %s' % (myOutdir, myOutdir+'/'+self.bam)
 		
 		writeCommands(command, myOutdir+'/tophat_'+self.sampleName+'.sh', run)
@@ -349,10 +357,12 @@ class NGSTools(getConfig):
 		if self.qualityBase == '64':
 			_phredQual = '--phred64'
 
-		command = 'bowtie2 %s -x %s -p 6 %s -1 %s ' % (_phredQual, self.bowtie2Index, mode, self.fq1)
+		command = '\\\n\t'.join(['%s %s' % (self.bowtie2, _phredQual),
+								'--rg-d %s' % self.sampleName,
+								'-p 6 %s -1 %s' % (self.bowtie2Index, mode, self.fq1)])
 
 		if self.fq2 != '':
-			command += '-2 %s ' % self.fq2
+			command += ' -2 %s ' % self.fq2
 
 		command += '| %s view -bS -h - > %s' % (self.samtools, myOutdir+'/'+self.bam)
 
