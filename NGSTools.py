@@ -159,8 +159,8 @@ class getConfig:
 		getConfig.fastx = config.get('tools', 'fastx')
 		getConfig.cutadapt = config.get('tools', 'cutadapt')
 		getConfig.fastqc = config.get('tools', 'fastqc')
-		getConfig.bowtie2 = config.get('tools', 'bowtie2')
-		getConfig.tophat2 = config.get('tools', 'tophat2')
+		getConfig.bowtie = config.get('tools', 'bowtie')
+		getConfig.tophat = config.get('tools', 'tophat')
 
 		getConfig.dbsnp = config.get('resource', 'dbsnp')
 		getConfig.know_indel = config.get('resource', 'know_indel')
@@ -334,8 +334,9 @@ class NGSTools(getConfig):
 		if self.qualityBase == '64':
 			_phredQual = '--phred64-quals'
 
-		command = '\\\n\t'.join(['%s -p 6' % self.tophat2,
+		command = '\\\n\t'.join(['%s -p 6' % self.tophat,
 								'-G %s %s' % (self.gtf, _phredQual),
+								#'--library-type fr-firststrand ',
 								'--rg-d %s' % self.sampleName,
 								'--rg-sample %s' % self.sampleName,
 								'--rg-library %s' % self.sampleName,
@@ -358,7 +359,7 @@ class NGSTools(getConfig):
 		if self.qualityBase == '64':
 			_phredQual = '--phred64'
 
-		command = '\\\n\t'.join(['%s %s' % (self.bowtie2, _phredQual),
+		command = '\\\n\t'.join(['%s %s' % (self.bowtie, _phredQual),
 								'--rg-d %s' % self.sampleName,
 								'-p 6 %s -1 %s' % (self.bowtie2Index, mode, self.fq1)])
 
