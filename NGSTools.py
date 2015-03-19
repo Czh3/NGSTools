@@ -337,7 +337,7 @@ class NGSTools(getConfig):
 		command = '\\\n\t'.join(['%s -p 6' % self.tophat,
 								'-G %s %s' % (self.gtf, _phredQual),
 								#'--library-type fr-firststrand ',
-								'--rg-d %s' % self.sampleName,
+								'--rg-id %s' % self.sampleName,
 								'--rg-sample %s' % self.sampleName,
 								'--rg-library %s' % self.sampleName,
 								'-o %s %s %s %s' % (myOutdir, self.bowtie2Index, self.fq1, self.fq2)])
