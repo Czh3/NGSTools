@@ -161,6 +161,7 @@ class getConfig:
 		getConfig.fastqc = config.get('tools', 'fastqc')
 		getConfig.bowtie = config.get('tools', 'bowtie')
 		getConfig.tophat = config.get('tools', 'tophat')
+		getConfig.gfold = config.get('tools', 'gfold')
 
 		getConfig.dbsnp = config.get('resource', 'dbsnp')
 		getConfig.know_indel = config.get('resource', 'know_indel')
@@ -478,6 +479,19 @@ class NGSTools(getConfig):
 
 		return countFile
 
+	def gfoldCount(self, run=True):
+		''' count reads with gfold'''
+
+		gfoldDir = os.path.join(self.outdir, 'GFold')
+		_mkdir(gfoldDir)
+
+		countFile = os.path.join(gfoldDir, self.sampleName+'.gfoldCount')
+
+		command = '\\\n\t'.join(['%s view %s | %s count -ann %s ' % (self.samtools, self.bam, self.gfold, self.gtf),
+								'-tag stdin ',
+								'-o %s ' %  countFile])
+
+		writeCommands(command, gfoldDir+'/gfold_count_%s.sh' % self.sampleName, run)
 
 	def splitN(self, bam='', run=True):
 		'''GATK SplitNCigarReads: Splits reads that contain Ns in their cigar string'''

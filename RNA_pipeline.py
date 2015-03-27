@@ -34,7 +34,8 @@ parser.add_argument('-a', '--analysis',
 					' 3:Cufflinks, assemble with cufflinkes\n'
 					' 4:DESeq2, call DEGs(different expression genes) using DESeq2 package\n'
 					' 5:DEXSeq, call DEUs(different exon usages) using DEXSeq package\n'
-					' 6:GATK, call SNP on mRNA using GATK]',
+					' 6:GATK, call SNP on mRNA using GATK.\n'
+					' 7:GFold, call DEGs without biological replicates using GFold]',
 					default='1,2')
 parser.add_argument('-c', '--config',
 					help='the config file of NGSTools package.',
@@ -75,6 +76,8 @@ if 5 in analy:
 	DEXSeq = True
 if 6 in analy:
 	GATK = True
+if 7 in analy:
+	GFold = True
 
 if args.debug:
 	_run = False
@@ -147,6 +150,10 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 			finalBam[recalBam] = sample['condition']
 
+		if GFold:
+
+			# GFold count
+			mySample.gfoldCount(run = _run)
 
 	########################  DEGs calling preparation ########################
 
@@ -157,7 +164,7 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 			os.mkdir(cuffdir)
 
 		# cufflinks #
-		command = 'cufflinks -p 4 -o %s %s' % (os.path.join(cuffdir, sample['condition']+'_'+sample['name']), sample['bam'])
+		command = 'cufflinks -p 4 -g %s -o %s %s' % (cfg.gtf, os.path.join(cuffdir, sample['condition']+'_'+sample['name']), sample['bam'])
 		NGSTools.writeCommands(command, cuffdir+'/cufflinks_%s.sh' % sample['name'], _run)
 
 		transcripts.append(os.path.join(cuffdir, sample['condition']+'_'+sample['name'], 'transcripts.gtf'))
@@ -234,6 +241,16 @@ if DESeq2:
 	if _run:
 		os.system('R %s' % Rcommand)
 
+if GFold:
+	# GFold #
+	gfoldDir = os.path.join(args.outDir, 'GFold')
+	
+	command = '\\\n\t'.join(['%s diff -s1 $1 -s2 $2 ' % cfg.gfold,
+							'-suf .gfoldCount ',
+							'-o $1"vs"$2'])
+
+	with open(gfoldDir+'/gfold_diff.sh', 'w') as shell:
+		shell.write(command)
 
 ########################  DEU calling ########################
 if DEXSeq:
