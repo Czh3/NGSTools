@@ -57,7 +57,7 @@ def GfoldFilter(file, outfilePrefix='out', rpkm=5, log2fdc=2):
 
 if __name__ == '__main__':
 	if len(sys.argv) == 3 and os.path.exists(sys.argv[1]):
-		GfoldFilter(sys.argv[1], sys.argv[2], 1)
+		GfoldFilter(sys.argv[1], sys.argv[2], 1, 2)
 	else:
 		sys.exit(usage())
 
