@@ -658,6 +658,7 @@ dev.off()
 		(C1, C2) = set(sampleCountPath_Condition.values())
 	except:
 		print 'ERROR: condition must be 2.'
+		(C1, C2) = list(set(sampleCountPath_Condition.values()))[0:2]
 
 	Rscript = Template(Rscript)
 	Rscript = Rscript.safe_substitute(sampleF=sampleF, sampleC=sampleC, C1=C1, C2=C2, outdir=outdir)
