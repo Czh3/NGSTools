@@ -473,7 +473,7 @@ class NGSTools(getConfig):
 			bam = self.bam
 
 		countFile = re.sub(r'.bam$', '.counts', bam)
-		command = '%s %s -r pos -s no -f bam -a 10 %s > %s' % (self.python, self.htseq,  bam, countFile)
+		command = '%s -r pos -s no -f bam -a 10 %s %s > %s' % (self.htseq, bam, self.gtf, countFile)
 
 		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/htseq_count_'+self.sampleName+'.sh', run)
 
