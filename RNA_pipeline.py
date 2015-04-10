@@ -134,6 +134,11 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 			condition[sample['condition']] = {sample['name'] : sample['bam']}
 
 
+		if GFold:
+
+			# GFold count
+			mySample.gfoldCount(run = _run)
+
 		if GATK:
 
 			# remove duplicates
@@ -150,10 +155,6 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 			finalBam[recalBam] = sample['condition']
 
-		if GFold:
-
-			# GFold count
-			mySample.gfoldCount(run = _run)
 
 	########################  DEGs calling preparation ########################
 

@@ -445,7 +445,7 @@ class NGSTools(getConfig):
 								 'TMP_DIR='+self.outdir,
 								 'INPUT='+self.bam,
 								 'OUTPUT='+rmdupBam,
-								 'METRICS_FILE='+self.outdir+'/mapping/'+METRICS_FILE,
+								 'METRICS_FILE='+METRICS_FILE,
 								 'VALIDATION_STRINGENCY=SILENT',
 								 'ASSUME_SORTED=true',
 								 'REMOVE_DUPLICATES='+remove,
