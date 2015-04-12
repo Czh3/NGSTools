@@ -92,7 +92,8 @@ def picard_merge(bamsList, outBam, cfg):
 
 	return command
 
-	
+
+
 
 def GATK_HC(bam, cfg, outdir='', sampleName=''):
 	''' GATK HaplotypeCaller '''
@@ -450,9 +451,27 @@ class NGSTools(getConfig):
 								 'ASSUME_SORTED=true',
 								 'REMOVE_DUPLICATES='+remove,
 								 'MAX_RECORDS_IN_RAM=5000000'])
-		command += '\nsamtools index '+rmdupBam
+		command += '\n%s index %s' % (self.samtools, rmdupBam)
 
 		self.bam = rmdupBam
+		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/picard_rmdup_'+self.sampleName+'.sh', run)
+
+		return self.bam
+
+
+	def picard_reorder(self, run=True):
+		'''picard reorder'''
+
+		reorderBam = re.sub(r'.bam$', '.reorder.bam', self.bam)
+		
+		command = '\\\n\t'.join(['java -Xmx6g -jar %s/ReorderSam.jar' % self.picard,
+								'I=%s' % self.bam,
+								'O=%s' % reorderBam,
+								'R=%s' % self.genome])
+
+		command += '\nrm %s' % self.bam
+
+		self.bam = reorderBam
 		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/picard_rmdup_'+self.sampleName+'.sh', run)
 
 		return self.bam
@@ -503,9 +522,13 @@ class NGSTools(getConfig):
 		outdir = os.path.join(self.outdir, 'variation')
 		_mkdir(outdir)
 
-		command = '\\\n\t'.join(['java -Xmx5g -jar %s' % self.GATK,
+		command = '%s index %s\n' % (self.samtools, bam)
+
+		command += '\\\n\t'.join(['java -Xmx5g -jar %s' % self.GATK,
 									'-T SplitNCigarReads',
-									'-I %s' % self.bam,
+									'-R %s' % self.genome,
+									'-I %s' % bam,
+									'-U ALLOW_N_CIGAR_READS',
 									'--out %s' % outbam])
 		self.bam = outbam
 
