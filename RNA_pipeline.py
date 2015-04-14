@@ -144,16 +144,25 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 			# remove duplicates
 			mySample.picard_rmdup(run = _run)
 
+			# picard reorder
+			mySample.picard_reorder(run = _run)
+
 			# splitN
 			mySample.splitN(run = _run)
 
 			# realign
-			mySample.realn(run = _run)
+			realnBam = mySample.realn(run = _run)
+
+			# recal need known SNP site
 
 			# recal
-			recalBam = mySample.recal(run = _run)
+			#recalBam = mySample.recal(run = _run)
 
-			finalBam[recalBam] = sample['condition']
+			finalBam[realnBam] = sample['condition']
+
+			# samtools call SNP/InDel
+			mySample.samtools_call(run = _run)
+			mySample.samtools_filter(run = _run)
 
 
 	########################  DEGs calling preparation ########################
@@ -282,20 +291,19 @@ if GATK:
 		mergedBam = '%s/%s.bam' % (out, condition)
 		script = NGSTools.picard_merge(bams, mergedBam, cfg)
 
-		NGSTools.writeCommands(command, '%s/picard_merge_%s.sh' % (out, condition), _run)
+		NGSTools.writeCommands(script, '%s/picard_merge_%s.sh' % (out, condition), False)
 
 
 		script = NGSTools.GATK_HC(mergedBam, cfg, out, condition)
 
-		NGSTools.writeCommands(command, '%s/gatk_HC_%s.sh' % (out, condition), _run)	
+		NGSTools.writeCommands(script, '%s/gatk_HC_%s.sh' % (out, condition), False)	
 
 
 		rawVcf = '%s/%s.raw.snps.indels.vcf' % (out, condition)
 		fltVcf = '%s/%s.flt.snps.indels.vcf' % (out, condition)
 		script = NGSTools.GATK_filter(mergedBam, rawVcf, fltVcf, cfg)
 
-		NGSTools.writeCommands(command, '%s/gatk_filter_%s.sh' % (out, condition), _run) 
-
+		NGSTools.writeCommands(script, '%s/gatk_filter_%s.sh' % (out, condition), False) 
 
 
 

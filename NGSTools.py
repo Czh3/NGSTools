@@ -96,7 +96,8 @@ def picard_merge(bamsList, outBam, cfg):
 
 
 def GATK_HC(bam, cfg, outdir='', sampleName=''):
-	''' GATK HaplotypeCaller '''
+	''' GATK HaplotypeCaller .
+	cfg: config file'''
 
 	command = '\\\n\t'.join(['java -Xmx5g -jar %s' % cfg.GATK,
 									'-T HaplotypeCaller',
@@ -138,6 +139,33 @@ def GATK_filter(bam, inputVcf, outputVcf, cfg):
 
 
 
+def bcftools_call(bam, cfg, outdir='', sampleName=''):
+	'''samtools variants calling '''
+
+	command = '\\\n\t'.join(['%s  mpileup -ugf %s' % (cfg.samtools, cfg.genome),
+								'%s' % bam,
+								'| %s call -vmO z' % (cfg.bcftools),
+								'-o %s/%s.vcf.gz' % (outdir, sampleName)])
+
+	return command
+
+
+def bcftools_filter(bam, inputVcf, outputVcf, cfg):
+	''' snp/indel hard filter using samtools/bcftools '''
+
+	markFilterVcf = re.sub(r'vcf.gz$', 'mark.vcf.gz', inputVcf)
+	command = '\\\n\t'.join(['%s filter -O z' % cfg.bcftools,
+								'-o %s' % markFilterVcf,
+								'-s Filter -i \'%%QUAL>30 & DP > 10 & MQ > 40 \' %s' % (inputVcf)])
+
+	command += '\nzcat %s | awk \'{if($1~/#/ || $7=="PASS") print}\' | bgzip  > %s' % (markFilterVcf, outputVcf)
+	command += '\ntabix -p vcf %s' % outputVcf
+
+	return command
+
+
+
+
 class getConfig:
 	'''get config file'''
 
@@ -156,6 +184,7 @@ class getConfig:
 		getConfig.python = config.get('tools', 'python')
 		getConfig.htseq = config.get('tools', 'htseq-count')
 		getConfig.samtools = config.get('tools', 'samtools')
+		getConfig.bcftools = config.get('tools', 'bcftools')
 		getConfig.GATK = config.get('tools', 'GATK')
 		getConfig.fastx = config.get('tools', 'fastx')
 		getConfig.cutadapt = config.get('tools', 'cutadapt')
@@ -472,7 +501,7 @@ class NGSTools(getConfig):
 		command += '\nrm %s' % self.bam
 
 		self.bam = reorderBam
-		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/picard_rmdup_'+self.sampleName+'.sh', run)
+		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/picard_reorder_'+self.sampleName+'.sh', run)
 
 		return self.bam
 
@@ -554,14 +583,14 @@ class NGSTools(getConfig):
 									'-I %s' % self.bam,
 									'-nt 10',
 									#'-know %s'
-									'-o %s/forIndelRealigner.intervals' % outdir ])
+									'-o %s/%sIndelRealigner.intervals' % (outdir, self.sampleName) ])
 		
 		# IndelRealigner
 		command += '\n' + '\\\n\t'.join(['java -Xmx5g -jar %s' % self.GATK,
 									'-T IndelRealigner',
 									'-R %s' % self.genome,
 									'-I %s' % self.bam,
-									'-targetIntervals %s' % outdir+'/forIndelRealigner.intervals',
+									'-targetIntervals %s' % outdir+'/'+self.sampleName+'IndelRealigner.intervals',
 									#'-know %s',
 									'-o %s' % outbam ])
 
@@ -589,7 +618,7 @@ class NGSTools(getConfig):
 									'-nct 10',
 									#'-knowSite %s',
 									#'-knowSite %s',
-									'-o %s/recal_data.table' % outdir ])
+									'-o %s/%srecal_data.table' % (outdir, self.sampleName) ])
 
 		# PrintReads
 		command += '\n' + '\\\n\t'.join(['java -Xmx5g -jar %s' % self.GATK,
@@ -597,7 +626,7 @@ class NGSTools(getConfig):
 									'-R %s' % self.genome,
 									'-I %s' % bam,
 									'-nct 10',
-									'-BQSR %s/recal_data.table' % outdir,
+									'-BQSR %s/%srecal_data.table' % (outdir, self.sampleName),
 									'-o %s' % outbam ])
 
 		self.bam = outbam
@@ -606,7 +635,7 @@ class NGSTools(getConfig):
 		return self.bam
 
 
-	def call(self,  run=True):
+	def GATK_call(self,  run=True):
 		''' GATK HaplotypeCaller '''
 
 		outdir = os.path.join(self.outdir, 'variation', self.sampleName)
@@ -620,7 +649,7 @@ class NGSTools(getConfig):
 
 		return self.rawVcf
 
-	def filter(self, run=True):
+	def GATK_filter(self, run=True):
 
 		outdir = os.path.join(self.outdir, 'variation', self.sampleName)
 		_mkdir(outdir)
@@ -635,6 +664,33 @@ class NGSTools(getConfig):
 		return self.fltVcf
 
 
+
+	def samtools_call(self, run=True):
+		'''call snp/indel using samtools '''
+
+		outdir = os.path.join(self.outdir, 'variation', self.sampleName)
+		_mkdir(outdir)
+
+		command = bcftools_call(self.bam, self, outdir, self.sampleName)
+
+		writeCommands(command, outdir+'/samtools_call_'+self.sampleName+'.sh', run)
+
+		self.rawVcf = '%s/%s.vcf.gz' % (outdir, self.sampleName)
+
+		return self.rawVcf
+
+
+	def samtools_filter(self, run=True):
+		'''use samtools_filter(bam, inputVcf, outputVcf, cfg):'''
+
+		outdir = os.path.join(self.outdir, 'variation', self.sampleName)
+
+		self.filterVcf = re.sub(r'vcf.gz$', 'filter.vcf.gz', self.rawVcf)
+		command = bcftools_filter(self.bam, self.rawVcf, self.filterVcf, self)
+
+		writeCommands(command, outdir+'/samtools_filter_'+self.sampleName+'.sh', run)
+
+		return self.filterVcf
 
 def deseq2(sampleCountPath_Condition, outdir):
 	'''
