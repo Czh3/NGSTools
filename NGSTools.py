@@ -80,7 +80,11 @@ def picard_merge(bamsList, outBam, cfg):
 	'''merge bam with picard'''
 
 
-	command = '\\\n\t'.join(['java -Xmx5g -jar %s/MergeSamFiles.jar' % cfg.picard,
+	if len(bamsList) == 1:
+		command = 'ln -sf %s %s' % (bamsList[0], outBam)
+
+	else:
+		command = '\\\n\t'.join(['java -Xmx5g -jar %s/MergeSamFiles.jar' % cfg.picard,
 								 'INPUT='+' INPUT='.join(bamsList),
 								 'OUTPUT=' + outBam,
 								 'TMP_DIR=' + os.path.dirname(outBam),
@@ -92,7 +96,32 @@ def picard_merge(bamsList, outBam, cfg):
 
 	return command
 
+def picard_rmdup(INbam, remove, cfg):
+	'''mark or remove PCR duplicates in bam with picard.
+	output rmduped bam file named *.rmdup.bam by default'''
 
+	rmdupBam = re.sub(r'.bam$', '.rmdup.bam', INbam)
+
+	if remove:
+		remove = 'true'
+	else:
+		remove = 'false'
+
+	METRICS_FILE = re.sub(r'.bam$', '.metrics', rmdupBam)
+
+	command = '\\\n\t'.join(['java -Xmx6g -jar %s/MarkDuplicates.jar' % cfg.picard,
+								 'TMP_DIR='+os.path.dirname(rmdupBam),
+								 'INPUT='+INbam,
+								 'OUTPUT='+rmdupBam,
+								 'METRICS_FILE='+METRICS_FILE,
+								 'VALIDATION_STRINGENCY=SILENT',
+								 'ASSUME_SORTED=true',
+								 'REMOVE_DUPLICATES='+remove,
+								 'MAX_RECORDS_IN_RAM=5000000'])
+	command += '\n%s index %s' % (cfg.samtools, rmdupBam)
+
+
+	return command
 
 
 def GATK_HC(bam, cfg, outdir='', sampleName=''):
@@ -164,6 +193,17 @@ def bcftools_filter(bam, inputVcf, outputVcf, cfg):
 	return command
 
 
+def methylation_extractor(bam, output_prefix, cfg):
+	'''BS_seeker2 methylation extractor'''
+	
+	command = '\\\n\t'.join(['%s %s' % (cfg.python, cfg.bs_seeker),
+							'--input=' % bam,
+							'--output-prefix=' % output_prefix,
+							])
+
+	return command
+
+
 
 
 class getConfig:
@@ -176,6 +216,7 @@ class getConfig:
 		config.read(cfgfile)
 		
 		getConfig.genome = config.get('genome', 'fasta')
+		getConfig.bismark_genome = config.get('genome', 'bismark_genome_dir')
 		getConfig.genomeFai = config.get('genome', 'genomeFai')
 		getConfig.bowtie2Index = config.get('genome', 'bowtie2Index')
 		getConfig.gtf = config.get('genome', 'gtf')
@@ -192,6 +233,9 @@ class getConfig:
 		getConfig.bowtie = config.get('tools', 'bowtie')
 		getConfig.tophat = config.get('tools', 'tophat')
 		getConfig.gfold = config.get('tools', 'gfold')
+		getConfig.trim_galore = config.get('tools', 'trim_galore')
+		getConfig.bismark = config.get('tools', 'bismark')
+		getConfig.bs_seeker = config.get('tools', 'bs_seeker')
 
 		getConfig.dbsnp = config.get('resource', 'dbsnp')
 		getConfig.know_indel = config.get('resource', 'know_indel')
@@ -200,7 +244,7 @@ class getConfig:
 
 class NGSTools(getConfig):
 	
-	def __init__(self, sampleName, outdir, fq1, fq2='-', qualityBase='32', cfgfile='~/.NGSTools.cfg'):
+	def __init__(self, sampleName, outdir, fq1, fq2='-', qualityBase='33', cfgfile='~/.NGSTools.cfg'):
 
 		self.sampleName = sampleName
 		self.outdir = os.path.abspath(outdir)
@@ -268,8 +312,8 @@ class NGSTools(getConfig):
 			command += '\n' + '\\\n\t'.join(['%s -q 15 -a %s ' % (self.cutadapt, adapter5),
 										'--minimum-length 30 -O 7 ',
 										'--quality-base %s ' % self.qualityBase,
-										'-o %s ' % cleanFq2,
-										'-p %s ' % cleanFq1,
+										'-o %s ' % cleanFq1,
+										'-p %s ' % cleanFq2,
 										'%s %s ' % (tmpFq1, tmpFq2)
 									])
 			command += '\nrm %s %s' % (tmpFq1, tmpFq2)
@@ -285,6 +329,35 @@ class NGSTools(getConfig):
 			self.fq1 = cleanFq1
 		
 		writeCommands(command, myOutdir+'/cutadapter_'+self.sampleName+'.sh', run)
+
+
+	def trim_Galore(self, rrbs, adapter5='AGATCGGAAGAGCGTCGTGTAGGGAAA', adapter3='GATCGGAAGAGCACACGTCTGAACTCCAGTCAC', run=True):
+		''' trim galore for RRBS sequencing '''
+
+		myOutdir = self.outdir+'/qc/'+self.sampleName
+		_mkdir(myOutdir)
+
+
+		if self.qualityBase == '33':
+			qualityBase = '--phred33'
+		elif self.qualityBase == '64':
+			qualityBase = '--phred64'
+		else:
+			qualityBase = ''
+			print 'WARNING: wrong quality scores for you input: ' + self.qualityBase
+
+		command = '\\\n\t'.join(['%s %s' % (self.trim_galore, qualityBase),
+								'--gzip --paired',
+								'-a %s' % adapter3,
+								'-a2 %s' % adapter5,
+								'--output_dir %s' % myOutdir,
+								'%s %s' % (self.fq1, self.fq2)
+								])
+
+		writeCommands(command, myOutdir+'/trim_galore_'+self.sampleName+'.sh', run)
+
+		self.fq1 = re.sub(r".fq.gz$", '_val_1.fq.gz', self.fq1)
+		self.fq2 = re.sub(r".fq.gz$", '_val_2.fq.gz', self.fq2)
 
 
 	def fastx_lowQual(self, q=5, p=50, run=True):
@@ -433,12 +506,64 @@ class NGSTools(getConfig):
 		self.bam = myOutdir+'/'+self.bam
 		return self.bam
 
+	def Bismark(self, run=True):
+		'''mapping WGBS or RRBS reads to referent genome using bismark '''
+
+		myOutdir = self.outdir+'/mapping/'
+		_mkdir(myOutdir)
+
+		if self.qualityBase == '33':
+			qualityBase = '--phred33-quals'
+		else:
+			qualityBase = '--phred64-quals'
+
+
+		command = '\\\n\t'.join(['%s --bowtie2' % self.bismark,
+								'%s --multicore 5 -p 5' % qualityBase,
+								'-o %s' % myOutdir,
+								'--temp_dir %s' % myOutdir,
+								'%s' % self.bismark_genome,
+								'-1 %s' % self.fq1,
+								'-2 %s' % self.fq2
+								])
+		self.bam = myOutdir + os.path.basename(self.fq1) + '_bismark_bt2_pe.bam'
+
+		writeCommands(command, myOutdir+'/bismark_'+self.sampleName+'.sh', run)
+
+		return self.bam
+
+
+	def Bs_seeker2(self, rrbs=False, run=True):
+		'''mapping WGBS or RRBS reads to referent genome using bs_seeker2 '''
+
+		myOutdir = self.outdir+'/mapping/'
+		_mkdir(myOutdir)
+
+		self.bam = myOutdir + self.sampleName +'.bam'
+
+		if rrbs:
+			rrbsFlag = '-r'
+		else:
+			rrbsFlag = ''
+
+		command = '\\\n\t'.join(['%s %s/bs_seeker2-align.py' % (self.python, self.bs_seeker),
+								'--aligner=bowtie2 -g hg19.fa %s' % rrbsFlag,
+								'--temp_dir ./ --bt-p 15',
+								'-1 %s' % self.fq1,
+								'-2 %s' % self.fq2,
+								'-o %s' % self.bam
+								])	
+
+		writeCommands(command, myOutdir+'/bs_seeker2_'+self.sampleName+'.sh', run)
+
+		return self.bam
+
 
 	def samtools_sort(self, run=True):
 		'''sort bam with samtools'''
 
 		sortedBam = re.sub(r'.bam$', '.sort.bam', self.bam)
-		command = '%s sort -@3 -m 2G %s %s' % (self.samtools, self.bam, sortedBam)
+		command = '%s sort -@3 -m 2G %s %s' % (self.samtools, self.bam, sortedBam.split('.')[:-1])
 		
 		self.bam = sortedBam
 		writeCommands(command, self.outdir+'/mapping/samtools_sort_'+self.sampleName+'.sh', run)
@@ -454,33 +579,17 @@ class NGSTools(getConfig):
 		command = picard_merge(bamList, mergeBam, self)
 
 		self.bam = mergeBam
-		writeCommands(command, self.outdir+'/maping/picard_mergebam_'+self.sampleName+'.sh', run)
+		writeCommands(command, self.outdir+'/mapping/picard_mergebam_'+self.sampleName+'.sh', run)
 
 		return self.bam
 
 
-	def picard_rmdup(self, remove=True, run=True):
+	def rmdup(self, remove=True, run=True):
 		'''mark or remove PCR duplicates in bam with picard'''
 
 		rmdupBam = re.sub(r'.bam$', '.rmdup.bam', self.bam)
 
-		if remove:
-			remove = 'true'
-		else:
-			remove = 'false'
-
-		METRICS_FILE = re.sub(r'.bam$', '.metrics', self.bam)
-
-		command = '\\\n\t'.join(['java -Xmx6g -jar %s/MarkDuplicates.jar' % self.picard,
-								 'TMP_DIR='+self.outdir,
-								 'INPUT='+self.bam,
-								 'OUTPUT='+rmdupBam,
-								 'METRICS_FILE='+METRICS_FILE,
-								 'VALIDATION_STRINGENCY=SILENT',
-								 'ASSUME_SORTED=true',
-								 'REMOVE_DUPLICATES='+remove,
-								 'MAX_RECORDS_IN_RAM=5000000'])
-		command += '\n%s index %s' % (self.samtools, rmdupBam)
+		command = picard_rmdup(self.bam, remove, self)
 
 		self.bam = rmdupBam
 		writeCommands(command, self.outdir+'/mapping/'+self.sampleName+'/picard_rmdup_'+self.sampleName+'.sh', run)

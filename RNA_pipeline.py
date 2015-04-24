@@ -79,7 +79,7 @@ if 6 in analy:
 if 7 in analy:
 	GFold = True
 
-if args.debug:
+if args.debug == False:
 	_run = False
 else:
 	_run = True
