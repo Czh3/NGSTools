@@ -62,7 +62,7 @@ analy = [int(i) for i in analy]
 if max(analy) > 2 and 2 not in analy:
 	sys.exit('analysis error:\tMust mapping the reads in advance')
 
-QC = Mapping = Cufflinks = DESeq2 = DEXSeq = GATK = False
+QC = Mapping = Cufflinks = DESeq2 = DEXSeq = GATK = GFold  = False
 
 if 1 in analy:
 	QC = True
@@ -79,12 +79,12 @@ if 6 in analy:
 if 7 in analy:
 	GFold = True
 
+global _run
+_run = ''
 if args.debug == False:
-	_run = False
-else:
 	_run = True
-
-
+else:
+	_run = False
 
 ##
 cfg = NGSTools.getConfig(os.path.abspath(args.config))
@@ -94,11 +94,19 @@ cfg = NGSTools.getConfig(os.path.abspath(args.config))
 def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 	cols = line.strip().split('\t')
+
+	if len(cols) == 3:
+		# single end library
+		fq2 = '-'
+	else:
+		# paired end
+		fq2 = cols[3]
+
 	sample = {
 		'name' : cols[0],
 		'condition' :	cols[1],
 		'fq1' : cols[2],
-		'fq2' : cols[3],
+		'fq2' : fq2,
 		'bam' : ''
 	}
 
@@ -113,8 +121,9 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 		###### 1.1 cut adapter ######
 		if args.dataType == 'raw':
+			#mySample.cutadapter(adapter5='', adapter3='AATGATACGGCGACCACCGAGATCT', run = _run)
 			mySample.cutadapter(run = _run)
-			mySample.rm_lowQual(run = _run)
+			#mySample.rm_lowQual(run = _run)
 		else:
 			pass
 
@@ -129,20 +138,26 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 
 		if condition.has_key(sample['condition']):
-			condition[sample['condition']][sample['name']] = sample['bam']
+			#condition[sample['condition']][sample['name']] = sample['bam']
+			condition[sample['condition']] += ","+sample['bam']
 		else:
-			condition[sample['condition']] = {sample['name'] : sample['bam']}
-
+			#condition[sample['condition']] = {sample['name'] : sample['bam']}
+			condition[sample['condition']] = sample['bam']
 
 		if GFold:
 
 			# GFold count
 			mySample.gfoldCount(run = _run)
+		
+		if DESeq2:
+			# DESeq2
+			count = mySample.HTSeq_count(run = _run)
+			countsFiles[count] = sample['condition']
 
 		if GATK:
 
 			# remove duplicates
-			mySample.picard_rmdup(run = _run)
+			mySample.rmdup(run = _run)
 
 			# picard reorder
 			mySample.picard_reorder(run = _run)
@@ -179,10 +194,6 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 		transcripts.append(os.path.join(cuffdir, sample['condition']+'_'+sample['name'], 'transcripts.gtf'))
 
-	if DESeq2:
-		##### 4. DESeq2 #####
-		count = mySample.HTSeq_count(run = _run)
-		countsFiles[count] = sample['condition']
 
 
 
@@ -204,7 +215,7 @@ for line in open(args.sampleList):
 	
 	sampleName = line.split('\t')[0]
 
-	P = Process(name=sampleName, target=processSample, args=(line, condition, transcripts, countsFiles, finalBam, ))
+	P = Process(name=sampleName, target=processSample, args=(line, condition, transcripts, countsFiles, finalBam))
 	P.start()
 
 	record.append(P)
@@ -225,16 +236,11 @@ if Cufflinks:
 	NGSTools.writeCommands(command, cuffdir+'/cuffmerge.sh', _run)
 
 	# cuffdiff #
-	cuffCondition = []
-	cuffBam = {}
-	for c in condition.keys():
-		cuffCondition.append(c)
-		cuffBam[c] = ','.join(condition[c].values())
 
-	if len(cuffCondition) != 2:
+	if len(condition) != 2:
 		print 'WARNING: condition'
 
-	command = 'cuffdiff -o %s -b %s -p 10 -L %s -u %s %s %s' % (cuffdir+'/cuffdiff', cfg.genome, cuffCondition[0]+','+cuffCondition[1], cuffdir+'/merged_asm/merged.gtf', cuffBam[cuffCondition[0]], cuffBam[cuffCondition[1]])
+	command = 'cuffdiff -o %s -b %s -p 10 -L %s -u %s %s %s' % (cuffdir+'/cuffdiff', cfg.genome, condition.keys()[0]+','+condition.keys()[1], cuffdir+'/merged_asm/merged.gtf', condition.values()[0], condition.values()[1])
 	NGSTools.writeCommands(command, cuffdir+'/cuffdiff.sh', _run)
 
 if DESeq2:

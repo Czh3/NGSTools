@@ -90,8 +90,8 @@ def picard_merge(bamsList, outBam, cfg):
 								 'TMP_DIR=' + os.path.dirname(outBam),
 								 'USE_THREADING=true',
 								 'SORT_ORDER=coordinate',
-								 'VALIDATION_STRINGENCY=SILENT',
-								 'MAX_RECORDS_IN_RAM=5000000'])
+								 'VALIDATION_STRINGENCY=SILENT'
+								 ])
 	command += '\nsamtools index ' + outBam
 
 	return command
@@ -171,7 +171,7 @@ def GATK_filter(bam, inputVcf, outputVcf, cfg):
 def bcftools_call(bam, cfg, outdir='', sampleName=''):
 	'''samtools variants calling '''
 
-	command = '\\\n\t'.join(['%s  mpileup -ugf %s' % (cfg.samtools, cfg.genome),
+	command = '\\\n\t'.join(['%s  mpileup -q 1 -t DP,DV -ugf %s' % (cfg.samtools, cfg.genome),
 								'%s' % bam,
 								'| %s call -vmO z' % (cfg.bcftools),
 								'-o %s/%s.vcf.gz' % (outdir, sampleName)])
@@ -182,12 +182,10 @@ def bcftools_call(bam, cfg, outdir='', sampleName=''):
 def bcftools_filter(bam, inputVcf, outputVcf, cfg):
 	''' snp/indel hard filter using samtools/bcftools '''
 
-	markFilterVcf = re.sub(r'vcf.gz$', 'mark.vcf.gz', inputVcf)
 	command = '\\\n\t'.join(['%s filter -O z' % cfg.bcftools,
-								'-o %s' % markFilterVcf,
-								'-s Filter -i \'%%QUAL>30 & DP > 10 & MQ > 40 \' %s' % (inputVcf)])
+								'-o %s' % outputVcf,
+								'-i \'%%QUAL>30 & DP > 10 & MQ > 40 \' %s' % (inputVcf)])
 
-	command += '\nzcat %s | awk \'{if($1~/#/ || $7=="PASS") print}\' | bgzip  > %s' % (markFilterVcf, outputVcf)
 	command += '\ntabix -p vcf %s' % outputVcf
 
 	return command
@@ -321,10 +319,10 @@ class NGSTools(getConfig):
 			self.fq2 = cleanFq2
 		else:
 			# Single-end reads
-			command = '\\\n\t'.join(['%s -q 10  -O 7 ' % self.cutadapt,
+			command = '\\\n\t'.join(['%s -q 10 --minimum-length 30 -O 7 ' % self.cutadapt,
 										'--quality-base %s ' % self.qualityBase,
 										'-a %s ' % adapter3,
-										'-o %s ' % cleanFq1
+										'-o %s %s' % (cleanFq1, self.fq1)
 									])
 			self.fq1 = cleanFq1
 		
@@ -399,7 +397,7 @@ class NGSTools(getConfig):
 									'-o1 %s ' % cleanFq1,
 									'-o2 %s ' % cleanFq2])
 		
-			command += '\n' + 'rm %s %s' % (self.fq1, self.fq2)
+			#command += '\n' + 'rm %s %s' % (self.fq1, self.fq2)
 			self.fq1 = cleanFq1
 			self.fq2 = cleanFq2
 
@@ -408,7 +406,7 @@ class NGSTools(getConfig):
 
 			cleanFq1 = re.sub(r'fq.gz$', 'highQ.fq.gz', self.fq1)
 
-			command = '\\\n\t'.join(['%s qualityControl.py -1 %s ' % (self.python, self.fq1),
+			command = '\\\n\t'.join(['%s %s/qualityControl.py -1 %s ' % (self.python, self.NGSTools, self.fq1),
 									'-q %s -p %s -a %s ' % (q, p, a),
 									'-o1 %s ' % cleanFq1])
 
@@ -464,7 +462,7 @@ class NGSTools(getConfig):
 			_phredQual = '--phred64'
 
 		command = '\\\n\t'.join(['%s %s' % (self.bowtie, _phredQual),
-								'--rg-d %s' % self.sampleName,
+								'--rg-id %s' % self.sampleName,
 								'-p 6 %s -1 %s' % (self.bowtie2Index, mode, self.fq1)])
 
 		if self.fq2 != '':
@@ -494,7 +492,7 @@ class NGSTools(getConfig):
 				self.fq2 = self.fq2.replace('.2.fq', '.phred33.2.fq')
 				print "\tConvert done."
 
-		command = 'bwa mem -t 6 -M -R "@RG\\tID:%s\\tSM:%s" %s %s ' % (self.sampleName, self.sampleName, self.genome, self.fq1)
+		command = 'bwa mem -t 6 -M -R "@RG\\tID:%s\\tLB:%s\\tSM:%s\\tPL:ILLUMINA" %s %s ' % (self.sampleName, self.sampleName, self.sampleName, self.genome, self.fq1)
 
 		if self.fq2 != '':
 			command += self.fq2
@@ -519,9 +517,9 @@ class NGSTools(getConfig):
 
 
 		command = '\\\n\t'.join(['%s --bowtie2' % self.bismark,
-								'%s --multicore 5 -p 5' % qualityBase,
+								'%s -p 5' % qualityBase,
 								'-o %s' % myOutdir,
-								'--temp_dir %s' % myOutdir,
+								'--temp_dir %s/tmp' % myOutdir,
 								'%s' % self.bismark_genome,
 								'-1 %s' % self.fq1,
 								'-2 %s' % self.fq2
@@ -817,7 +815,7 @@ sampleFiles <- c($sampleF)
 sampleCondition <- c($sampleC)
 sampleTable <- data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 
-ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
+ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, design=~condition)
 
 colData(ddsHTSeq)$condition<-factor(colData(ddsHTSeq)$condition, levels=c("$C1", "$C2"))
 
@@ -826,10 +824,10 @@ res <- results(dds)
 res <- res[order(res$padj), ]
 
 resSig <- subset(res, padj < 0.1)
-write.table(as.data.frame(resSig), sep="\\t", file=paste($outdir, "DESeq.out.xls", collapse="/"))
+write.table(as.data.frame(resSig), sep="\\t", file=paste("$outdir", "DESeq.out.xls", sep="/"))
 
+pdf(paste("$outdir", "deseq2_MAplot.png", sep="/"))
 plotMA(dds, ylim=c(-2,2), main="deseq2")
-dev.copy(png, paste($outdir, "deseq2_MAplot.png", collapse="/")
 dev.off()
 
 '''

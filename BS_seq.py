@@ -111,6 +111,8 @@ def sampleListParser():
 	sampleListDict = {}
 
 	for line in open(args.sampleList):
+		if line.startswith('#'):
+			continue
 		# "sampleID\tsampleName\tfastq1Path\tfastq2Path"
 		cols = line.strip().split("\t")
 
