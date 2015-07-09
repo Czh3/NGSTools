@@ -27,8 +27,9 @@ Author: Czh3 <zhangchao3@hotmail.com>
 
 This package help you to build your own pipeline easily.
 
-Here is a example of RNA-sequencing pipeline.
+Here are several examples of NGS pipelines.
 
+mRNA sequencing
 ```bash
 python2.7 ~/bin/NGSTools/RNA_pipeline.py --sampleList sample.list\
 	-d raw  -o pipe_out -c ~/.mouse.cfg\
@@ -68,4 +69,74 @@ optional arguments:
   --debug DEBUG         debug mode
 ```
 
+BS sequence pipeline
+```bash
+python ~/bin/NGSTools/BS_seq.py -s sample.list 	\
+	-o result 	\
+	-c /home/zhangc/.mouse.cfg 	\
+	-r -a 1,2,7
+```
 
+```bash
+python ~/bin/NGSTools/BS_seq.py -h
+usage: BS_seq.py [-h] -s SAMPLELIST [-o OUTDIR] [-c CONFIG] [-r] [-a ANALYSIS]
+                 [--debug DEBUG]
+
+A pipeline of Bisulfite-Seq(WGBS and RRBS) data analysis. <zhangchao3@hotmail.com>
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s SAMPLELIST, --sampleList SAMPLELIST
+                        sample list for RNA samples information.
+                         A file each line contains:
+                        sampleID	sampleName	fastq1Path	fastq2Path
+  -o OUTDIR, --outDir OUTDIR
+                        The pipeline output dir
+  -c CONFIG, --config CONFIG
+                        the config file of NGSTools package.
+  -r, --rrbs            for RRBS library
+  -a ANALYSIS, --analysis ANALYSIS
+                        analysis of the pipeline to do.
+                        Here is some software to choose to analy
+                        [1:QC, quality control
+                         2:bismark, align the reads to reference genome
+                         3:bs_seeker2, align the reads to reference genome
+                         4:picard_rmdup, remove PCR duplicates using picard
+                         5:BS_SEEK2_methylation_extractor, call methylation levels using the tools in bismark
+                         6:swDMR, call methylation levels using swDMR]
+                         7:bismark_methylation_extractor
+  --debug DEBUG         debug mode
+```
+
+MeDIP pipeline
+```bash
+python ~/bin/NGSTools/MeDIP.py -s sample.list	\
+	-o result	\
+	-c ~/.mouse.cfg
+```
+
+```bash
+python ~/bin/NGSTools/MeDIP.py -h
+usage: MeDIP.py [-h] -s SAMPLELIST [-o OUTDIR] [-c CONFIG] [-a ANALYSIS]
+                [--debug DEBUG]
+
+A pipeline for MeDIP data analysis. <zhangchao3@hotmail.com>
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s SAMPLELIST, --sampleList SAMPLELIST
+                        sample list for RNA samples information.
+                         A file each line contains:
+                        sampleID	sampleName	fastq1Path	fastq2Path
+  -o OUTDIR, --outDir OUTDIR
+                        The pipeline output dir
+  -c CONFIG, --config CONFIG
+                        the config file of NGSTools package.
+  -a ANALYSIS, --analysis ANALYSIS
+                        analysis of the pipeline to do.
+                        Here is some software to choose to analy
+                        [1:QC, quality control
+                         2:BWA, align the reads to reference genome
+                         3:Filter Bam, get properly matched reads 4:picard_rmdup, remove PCR duplicates using picard
+  --debug DEBUG         debug mode
+```
