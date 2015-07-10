@@ -1,4 +1,4 @@
-#-*- coding: UTF-8 -*-
+#-*- ceoding: UTF-8 -*-
 import os
 import re
 from time import ctime
@@ -195,14 +195,22 @@ def methylation_extractor(bam, output_prefix, cfg):
 	'''BS_seeker2 methylation extractor'''
 	
 	command = '\\\n\t'.join(['%s %s' % (cfg.python, cfg.bs_seeker),
-							'--input=' % bam,
-							'--output-prefix=' % output_prefix,
+							'--input=%s' % bam,
+							'--output-prefix=%s' % output_prefix
 							])
 
 	return command
 
 
+def bismark_methylation_extractor(bam, outdir, cfg):
+	##bismark_methylation_extractor -p --cytosine_report --CX --no_overlap --multicore 5 --genome_folder ~/reference/human
 
+	command = '\\\n\t'.join(['bismark_methylation_extractor -p --cytosine_report --CX --no_overlap',
+							'--multicore 3',
+							'-o %s' % outdir,
+							'--genome_folder %s' % cfg.bismark_genome,
+							'%s' % bam ])
+	return command
 
 class getConfig:
 	'''get config file'''
@@ -242,7 +250,7 @@ class getConfig:
 
 class NGSTools(getConfig):
 	
-	def __init__(self, sampleName, outdir, fq1, fq2='-', qualityBase='33', cfgfile='~/.NGSTools.cfg'):
+	def __init__(self, sampleName, outdir, fq1, fq2='-', libType='fr-unstranded', qualityBase='33', cfgfile='~/.NGSTools.cfg'):
 
 		self.sampleName = sampleName
 		self.outdir = os.path.abspath(outdir)
@@ -269,6 +277,7 @@ class NGSTools(getConfig):
 		else:
 			self.fq2 = ''
 
+		self.libType = libType
 		self.qualityBase = qualityBase
 		
 		self.bam = sampleName+'.bam'
@@ -310,9 +319,9 @@ class NGSTools(getConfig):
 			command += '\n' + '\\\n\t'.join(['%s -q 15 -a %s ' % (self.cutadapt, adapter5),
 										'--minimum-length 30 -O 7 ',
 										'--quality-base %s ' % self.qualityBase,
-										'-o %s ' % cleanFq1,
-										'-p %s ' % cleanFq2,
-										'%s %s ' % (tmpFq1, tmpFq2)
+										'-o %s ' % cleanFq2,
+										'-p %s ' % cleanFq1,
+										'%s %s ' % (tmpFq2, tmpFq1)
 									])
 			command += '\nrm %s %s' % (tmpFq1, tmpFq2)
 			self.fq1 = cleanFq1
@@ -344,8 +353,13 @@ class NGSTools(getConfig):
 			qualityBase = ''
 			print 'WARNING: wrong quality scores for you input: ' + self.qualityBase
 
+		if rrbs:
+			_RRBS = '--rrbs'
+		else:
+			_RRBS = ''
+
 		command = '\\\n\t'.join(['%s %s' % (self.trim_galore, qualityBase),
-								'--gzip --paired',
+								'--gzip --paired %s' % _RRBS,
 								'-a %s' % adapter3,
 								'-a2 %s' % adapter5,
 								'--output_dir %s' % myOutdir,
@@ -354,8 +368,8 @@ class NGSTools(getConfig):
 
 		writeCommands(command, myOutdir+'/trim_galore_'+self.sampleName+'.sh', run)
 
-		self.fq1 = re.sub(r".fq.gz$", '_val_1.fq.gz', self.fq1)
-		self.fq2 = re.sub(r".fq.gz$", '_val_2.fq.gz', self.fq2)
+		self.fq1 = os.path.join( myOutdir, re.sub(r".fq.gz$", '_val_1.fq.gz', os.path.basename(self.fq1)))
+		self.fq2 = os.path.join( myOutdir, re.sub(r".fq.gz$", '_val_2.fq.gz', os.path.basename(self.fq2)))
 
 
 	def fastx_lowQual(self, q=5, p=50, run=True):
@@ -438,7 +452,7 @@ class NGSTools(getConfig):
 
 		command = '\\\n\t'.join(['%s -p 6' % self.tophat,
 								'-G %s %s' % (self.gtf, _phredQual),
-								#'--library-type fr-firststrand ',
+								'--library-type %s ' % self.libType,
 								'--rg-id %s' % self.sampleName,
 								'--rg-sample %s' % self.sampleName,
 								'--rg-library %s' % self.sampleName,
@@ -463,7 +477,7 @@ class NGSTools(getConfig):
 
 		command = '\\\n\t'.join(['%s %s' % (self.bowtie, _phredQual),
 								'--rg-id %s' % self.sampleName,
-								'-p 6 %s -1 %s' % (self.bowtie2Index, mode, self.fq1)])
+								'-p 6 %s %s -1 %s' % (mode, self.bowtie2Index, self.fq1)])
 
 		if self.fq2 != '':
 			command += ' -2 %s ' % self.fq2
@@ -479,7 +493,7 @@ class NGSTools(getConfig):
 	def bwa(self, run=True):
 		'''mapping with bwa mem'''
 
-		myOutdir = self.outdir+'/mapping'
+		myOutdir = self.outdir+'/mapping/'+self.sampleName
 		_mkdir(myOutdir)
 
 		if self.qualityBase == '64':
@@ -560,11 +574,14 @@ class NGSTools(getConfig):
 	def samtools_sort(self, run=True):
 		'''sort bam with samtools'''
 
+		myOutdir = self.outdir+'/mapping/'+self.sampleName
+		_mkdir(myOutdir)
+
 		sortedBam = re.sub(r'.bam$', '.sort.bam', self.bam)
-		command = '%s sort -@3 -m 2G %s %s' % (self.samtools, self.bam, sortedBam.split('.')[:-1])
+		command = '%s sort -@3 -m 2G %s %s' % (self.samtools, self.bam, sortedBam.rsplit('.', 1)[0])
 		
 		self.bam = sortedBam
-		writeCommands(command, self.outdir+'/mapping/samtools_sort_'+self.sampleName+'.sh', run)
+		writeCommands(command, myOutdir+'/samtools_sort_'+self.sampleName+'.sh', run)
 
 		return self.bam
 

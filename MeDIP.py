@@ -6,6 +6,7 @@ import sys
 
 import NGSTools
 import argparse
+import re
 import os
 
 from multiprocessing import Process, Manager
@@ -32,7 +33,7 @@ parser.add_argument('-a', '--analysis',
                     help='analysis of the pipeline to do.\n'
                     'Here is some software to choose to analy\n'
                     '[1:QC, quality control\n'
-                    ' 2:BWA, align the reads to reference genome\n'
+                    ' 2:Mapping, align the reads to reference genome\n'
 					' 3:Filter Bam, get properly matched reads'
 					' 4:picard_rmdup, remove PCR duplicates using picard\n',
                     default='1,2,3,4')
@@ -136,7 +137,9 @@ def processSampleFromLibarary(sampleID, sampleIDList, libraryBamFileList):
 
 	########################## 2. Mapping  #######################
 	if BWA:
-		finalBam = mySample.bwa(run=_run)
+		#finalBam = mySample.bwa(run=_run)
+		finalBam = mySample.bowtie2(mode='--end-to-end', run=_run)
+		finalBam = mySample.samtools_sort(run=_run)
 
 	libraryBamFileList.append(finalBam)
 
@@ -171,17 +174,17 @@ def processSample(sampleName, sampleNameDict):
 
 	# merge the bam from each line to one final bam
 	command = NGSTools.picard_merge(libraryBamFileList, mergedBamFilePath, cfg)
-	NGSTools.writeCommands(command, args.outDir+'/mapping/picard_mergebam_'+sampleName+'.sh', run=_run)
+	NGSTools.writeCommands(command, bamFileDir+'/picard_mergebam_'+sampleName+'.sh', run=_run)
 
 
 	###################### 3. filter bam  ######################
 	command = 'samtools view -Sb -h -f 2 -q 10 %s > %s ' % (mergedBamFilePath, finalBamFilePath)
-
+	NGSTools.writeCommands(command, bamFileDir+'/filterBam_'+sampleName+'.sh', run=_run)
 
 	###################### 4. romove duplicates ##################
 	if RMDUP:
 		command = NGSTools.picard_rmdup(finalBamFilePath, True, cfg)
-		NGSTools.writeCommands(command, args.outDir+'/mapping/picard_rmdup_'+sampleName+'.sh', run=_run)
+		NGSTools.writeCommands(command, bamFileDir+'/picard_rmdup_'+sampleName+'.sh', run=_run)
 
 		finalBamFilePath = re.sub(r'.bam$', '.rmdup.bam', finalBamFilePath)
 
