@@ -276,7 +276,7 @@ if DESeq:
 		pass
 	
 	Rcommand = NGSTools.deseq(countsFiles, deseqDir)
-	with open(deseqDir+'/deseq2.R', 'w') as shell:
+	with open(deseqDir+'/deseq.R', 'w') as shell:
 		shell.write(Rcommand)
 	if _run:
 		os.system('R %s' % Rcommand)

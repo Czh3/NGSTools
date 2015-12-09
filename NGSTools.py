@@ -876,12 +876,15 @@ def htseq2table(sampleCountPath_Condition, outfile):
 	'''merge all sample's gene counts from HTseq-count to one file '''
 	
 	res = {}
-	headerLine = "\t"
-	for path in sampleCountPath_Condition:
-		headerLine += sampleCountPath_Condition[path].split('|')[1]
+	headerLine = ""
+	for path in sampleCountPath_Condition.keys():
+		headerLine += "\t" + sampleCountPath_Condition[path].split('|')[1]
 		for line in open(path):
 			col = line.strip().split()
-			res[col[0]] += '\t' + col[1]
+			if res.has_key(col[0]):
+				res[col[0]] += '\t' + col[1]
+			else:
+				res[col[0]] = '\t' + col[1]
 
 	outputHandle = open(outfile, "w")
 	outputHandle.write(headerLine + '\n')
@@ -950,12 +953,14 @@ call_DEG("$C1", "$C2")
 
 	C1 = C2 = ''
 
-	for samplePath in sampleCountPath_Condition:
-		C1 = sampleCountPath_Condition[samplePath].split('_')[0]
-	for samplePath in sampleCountPath_Condition:
-		if sampleCountPath_Condition[samplePath].split('_')[0] != C1:
-			C2 = sampleCountPath_Condition[samplePath].split('_')[0]
+	for samplePath in sampleCountPath_Condition.keys():
+		C1 = sampleCountPath_Condition[samplePath].split('|')[0]
+	for samplePath in sampleCountPath_Condition.keys():
+		if sampleCountPath_Condition[samplePath].split('|')[0] != C1:
+			C2 = sampleCountPath_Condition[samplePath].split('|')[0]
 			break
+
+	Rscript = Template(Rscript)
 
 	try:
 		Rscript = Rscript.safe_substitute(outdir = outdir, C1 = C1, C2 = C2)
@@ -964,7 +969,7 @@ call_DEG("$C1", "$C2")
 	finally:
 		pass
 
-
+	return Rscript
 
 def dexseq():
 	'''under construction '''
