@@ -26,13 +26,17 @@ parser.add_argument('-d', '--dataType',
 					' if (clean data): not run cutadapter',
 					choices=['raw', 'clean'],
 					default='clean')
+parser.add_argument('-l', '--libraryType',
+					help='library type for tophat2 mapper,default none strand-specific\n',
+					choices=['fr-unstranded', 'fr-firststrand', 'fr-secondstrand'],
+					default='fr-unstranded')
 parser.add_argument('-a', '--analysis',
 					help='analysis of the pipeline to do.\n'
 					'Here is some software to choose to analy\n'
 					'[1:QC, quality control\n'
 					' 2:Mapping, align the reads to reference genome\n'
 					' 3:Cufflinks, assemble with cufflinkes\n'
-					' 4:DESeq2, call DEGs(different expression genes) using DESeq2 package\n'
+					' 4:DESeq, call DEGs(different expression genes) using DESeq package\n'
 					' 5:DEXSeq, call DEUs(different exon usages) using DEXSeq package\n'
 					' 6:GATK, call SNP on mRNA using GATK.\n'
 					' 7:GFold, call DEGs without biological replicates using GFold]',
@@ -62,7 +66,7 @@ analy = [int(i) for i in analy]
 if max(analy) > 2 and 2 not in analy:
 	sys.exit('analysis error:\tMust mapping the reads in advance')
 
-QC = Mapping = Cufflinks = DESeq2 = DEXSeq = GATK = GFold  = False
+QC = Mapping = Cufflinks = DESeq = DEXSeq = GATK = GFold  = False
 
 if 1 in analy:
 	QC = True
@@ -71,7 +75,7 @@ if 2 in analy:
 if 3 in analy:
 	Cufflinks = True
 if 4 in analy:
-	DESeq2 = True
+	DESeq = True
 if 5 in analy:
 	DEXSeq = True
 if 6 in analy:
@@ -91,7 +95,7 @@ cfg = NGSTools.getConfig(os.path.abspath(args.config))
 
 
 
-def processSample(line, condition, transcripts, countsFiles, finalBam):
+def processSample(line, condition, transcripts, countsFiles, finalBam, expressCXB):
 
 	cols = line.strip().split('\t')
 
@@ -113,7 +117,7 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 
 	########################## 0. init #########################
 	#__init__(self, sampleName, outdir, fq1, fq2='', quanlityBase='32', cfgfile='~/.NGSTools.cfg'):
-	mySample = NGSTools.NGSTools(sample['name'], args.outDir, sample['fq1'], sample['fq2'], cfgfile=os.path.abspath(args.config))
+	mySample = NGSTools.NGSTools(sample['name'], args.outDir, sample['fq1'], sample['fq2'], libType=args.libraryType, cfgfile=os.path.abspath(args.config))
 	
 
 	if QC:
@@ -149,10 +153,10 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 			# GFold count
 			mySample.gfoldCount(run = _run)
 		
-		if DESeq2:
+		if DESeq:
 			# DESeq2
 			count = mySample.HTSeq_count(run = _run)
-			countsFiles[count] = sample['condition']
+			countsFiles[count] = sample['condition'] + '|' + sample['name']
 
 		if GATK:
 
@@ -189,15 +193,20 @@ def processSample(line, condition, transcripts, countsFiles, finalBam):
 			os.mkdir(cuffdir)
 
 		# cufflinks #
-		command = 'cufflinks -p 4 -g %s -o %s %s' % (cfg.gtf, os.path.join(cuffdir, sample['condition']+'_'+sample['name']), sample['bam'])
+		command = 'cufflinks --library-type %s -p 4 -g %s -o %s %s' % (args.libraryType, cfg.gtf, os.path.join(cuffdir, sample['condition']+'_'+sample['name']), sample['bam'])
 		NGSTools.writeCommands(command, cuffdir+'/cufflinks_%s.sh' % sample['name'], _run)
 
 		transcripts.append(os.path.join(cuffdir, sample['condition']+'_'+sample['name'], 'transcripts.gtf'))
 
+		# cuffquant #
+		#command = 'cuffquant %s -o %s %s' % (cfg.gtf, os.path.join(cuffdir, 'cuffquant' ,sample['condition']+'_'+sample['name'], sample['bam']))
+		#NGSTools.writeCommands(command, cuffdir+'/cuffquant_%s.sh' % sample['name'], _run)
 
-
-
-
+		#cxbFile = os.path.join(cuffdir, 'cuffquant' ,sample['condition']+'_'+sample['name'], 'abundances.cxb')
+		#if expressCXB.has_key(sample['condition']):
+		#	expressCXB[sample['condition']] += ','+cxbFile
+		#else:
+		#	expressCXB[sample['condition']] = cxbFile
 
 # process communication
 mng = Manager()
@@ -205,6 +214,7 @@ condition = mng.dict()
 transcripts = mng.list()
 countsFiles = mng.dict()
 finalBam = mng.dict()
+expressCXB = mng.dict()
 
 # multi-process
 record = []
@@ -215,7 +225,7 @@ for line in open(args.sampleList):
 	
 	sampleName = line.split('\t')[0]
 
-	P = Process(name=sampleName, target=processSample, args=(line, condition, transcripts, countsFiles, finalBam))
+	P = Process(name=sampleName, target=processSample, args=(line, condition, transcripts, countsFiles, finalBam, expressCXB))
 	P.start()
 
 	record.append(P)
@@ -235,6 +245,20 @@ if Cufflinks:
 	command = 'cuffmerge -o %s -g %s -s %s -p 10 %s' % (cuffdir+'/merged_asm', cfg.gtf, cfg.genome, cuffdir+'/assemblies.txt')
 	NGSTools.writeCommands(command, cuffdir+'/cuffmerge.sh', _run)
 
+
+	# cuffnorm #
+	cuffnorm_dir = os.path.join(cuffdir, 'cuffnorm')
+	try:
+		os.mkdir(cuffnorm_dir)
+	except:
+		pass
+	
+	cond = ','.join(condition.keys())
+	bams = ' '.join(condition.values())
+	command = 'cuffnorm --library-type %s -o %s -L %s %s %s' % (args.libraryType, cuffnorm_dir, cond, cfg.gtf, bams)
+	NGSTools.writeCommands(command, cuffdir+'/cuffnorm.sh', _run)
+
+
 	# cuffdiff #
 
 	if len(condition) != 2:
@@ -243,7 +267,7 @@ if Cufflinks:
 	command = 'cuffdiff -o %s -b %s -p 10 -L %s -u %s %s %s' % (cuffdir+'/cuffdiff', cfg.genome, condition.keys()[0]+','+condition.keys()[1], cuffdir+'/merged_asm/merged.gtf', condition.values()[0], condition.values()[1])
 	NGSTools.writeCommands(command, cuffdir+'/cuffdiff.sh', _run)
 
-if DESeq2:
+if DESeq:
 	# deseq2 #
 	deseqDir = os.path.join(args.outDir, 'DESeq')
 	try:
@@ -251,7 +275,7 @@ if DESeq2:
 	except:
 		pass
 	
-	Rcommand = NGSTools.deseq2(countsFiles, deseqDir)
+	Rcommand = NGSTools.deseq(countsFiles, deseqDir)
 	with open(deseqDir+'/deseq2.R', 'w') as shell:
 		shell.write(Rcommand)
 	if _run:

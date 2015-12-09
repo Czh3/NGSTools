@@ -38,6 +38,10 @@ parser.add_argument('-a', '--analysis',
 					' 4:picard_rmdup, remove PCR duplicates using picard\n',
                     default='1,2,3,4')
 
+parser.add_argument('-b', '--qbase',
+					help="quality base of base calling: 33(default) or 64\n",
+					default='33')
+
 parser.add_argument('--debug',
                     help='debug mode',
                     default=False)
@@ -125,9 +129,9 @@ def processSampleFromLibarary(sampleID, sampleIDList, libraryBamFileList):
 	''''''
 
 	########################## 0. init #########################
-	#__init__(self, sampleName, outdir, fq1, fq2='', quanlityBase='33', cfgfile='~/.NGSTools.cfg')
+	#__init__(self, sampleName, outdir, fq1, fq2='', qualityBase='33', cfgfile='~/.NGSTools.cfg')
 
-	mySample = NGSTools.NGSTools(sampleID, args.outDir, fq1=sampleIDList[0], fq2=sampleIDList[1], cfgfile=os.path.abspath(args.config))
+	mySample = NGSTools.NGSTools(sampleID, args.outDir, fq1=sampleIDList[0], fq2=sampleIDList[1], qualityBase=args.qbase, cfgfile=os.path.abspath(args.config))
 
 	########################## 1. QC  #########################
 
@@ -178,7 +182,8 @@ def processSample(sampleName, sampleNameDict):
 
 
 	###################### 3. filter bam  ######################
-	command = 'samtools view -Sb -h -f 2 -q 10 %s > %s ' % (mergedBamFilePath, finalBamFilePath)
+	#command = 'samtools view -Sb -h -f 2 -q 10 %s > %s ' % (mergedBamFilePath, finalBamFilePath)
+	command = 'samtools view -Sb -h -q 10 %s > %s ' % (mergedBamFilePath, finalBamFilePath)
 	NGSTools.writeCommands(command, bamFileDir+'/filterBam_'+sampleName+'.sh', run=_run)
 
 	###################### 4. romove duplicates ##################

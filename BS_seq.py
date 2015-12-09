@@ -40,8 +40,9 @@ parser.add_argument('-a', '--analysis',
                     ' 2:bismark, align the reads to reference genome\n'
                     ' 3:bs_seeker2, align the reads to reference genome\n'
 					' 4:picard_rmdup, remove PCR duplicates using picard\n'
-                    ' 5:methylation_extractor, call methylation levels using the tools in bismark\n'
-                    ' 6:swDMR, call methylation levels using swDMR]\n',
+                    ' 5:BS_SEEK2_methylation_extractor, call methylation levels using the tools in bismark\n'
+                    ' 6:swDMR, call methylation levels using swDMR]\n'
+					' 7:bismark_methylation_extractor',
                     default='1,2')
 
 parser.add_argument('--debug',
@@ -64,7 +65,7 @@ if not os.path.exists(args.outDir):
 analy = args.analysis.split(',')
 analy = [int(i) for i in analy]
 
-QC = Bismark = Bs_seeker2 = Methylation_extractor = swDMR = False
+QC = Bismark = Bs_seeker2 = RMDUP = Methylation_extractor = swDMR = False
 
 if 1 in analy:
 	QC = True
@@ -78,6 +79,9 @@ if 5 in analy:
 	Methylation_extractor = True
 if 6 in analy:
 	swDMR = True
+if 7 in analy:
+	bismark_methylation_extractor = True
+
 
 if args.debug:
 	_run = False
@@ -194,10 +198,15 @@ def processSample(sampleName, sampleNameDict):
 		finalBamFilePath = re.sub(r'.bam$', '.rmdup.bam', finalBamFilePath)
 
 	
-	##################### 4. DMR calling ##################
+	##################### 4. CpG methylation calling ##################
 	if Methylation_extractor:
-		NGSTools.methylation_extractor(finalBamFilePath, bamFileDir+'/'+sampleName, cfg)
+		command = NGSTools.methylation_extractor(finalBamFilePath, bamFileDir+'/'+sampleName, cfg)
+		NGSTools.writeCommands(command, args.outDir+'/mapping/BSseeker_extractor_'+sampleName+'.sh', run=_run)
 
+	if bismark_methylation_extractor:
+		NGSTools._mkdir(bamFileDir+'/'+sampleName)
+		command = NGSTools.bismark_methylation_extractor(finalBamFilePath, bamFileDir+'/'+sampleName, cfg)
+		NGSTools.writeCommands(command, args.outDir+'/mapping/Bismark_extractor_'+sampleName+'.sh', run=_run)
 
 # main function
 
