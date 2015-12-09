@@ -477,7 +477,7 @@ class NGSTools(getConfig):
 
 		command = '\\\n\t'.join(['%s %s' % (self.bowtie, _phredQual),
 								'--rg-id %s' % self.sampleName,
-								'-p 6 %s %s -1 %s' % (mode, self.bowtie2Index, self.fq1)])
+								'-p 6 %s -x %s -1 %s' % (mode, self.bowtie2Index, self.fq1)])
 
 		if self.fq2 != '':
 			command += ' -2 %s ' % self.fq2
@@ -818,9 +818,11 @@ class NGSTools(getConfig):
 
 def deseq2(sampleCountPath_Condition, outdir):
 	'''
+	CAREFUL!!!, did not test! use before test.
+
 	sampleCountPath_Condition is a hash:
-	{sample1_count_path : condition,
-	sample2_count_path : condition}
+	{sample1_count_path : condition|sample1_name,
+	sample2_count_path : condition|sample2_name}
 	return: the Rscript doing DEG calling using DESeq2
 	'''
 
@@ -854,7 +856,7 @@ dev.off()
 
 	sampleC = '"'
 	for i in sorted(sampleCountPath_Condition.keys()):
-		sampleC += sampleCountPath_Condition[i] + '","'
+		sampleC += sampleCountPath_Condition[i].split('|')[0] + '","'
 	sampleC = sampleC[:-2] 
 
 	try:
@@ -863,30 +865,110 @@ dev.off()
 		print 'ERROR: condition must be 2.'
 		(C1, C2) = list(set(sampleCountPath_Condition.values()))[0:2]
 
+	C1 = C1.split('|')[0]
+	C2 = C2.split('|')[0]
 	Rscript = Template(Rscript)
 	Rscript = Rscript.safe_substitute(sampleF=sampleF, sampleC=sampleC, C1=C1, C2=C2, outdir=outdir)
 
 	return Rscript
 
+def htseq2table(sampleCountPath_Condition, outfile):
+	'''merge all sample's gene counts from HTseq-count to one file '''
+	
+	res = {}
+	headerLine = "\t"
+	for path in sampleCountPath_Condition:
+		headerLine += sampleCountPath_Condition[path].split('|')[1]
+		for line in open(path):
+			col = line.strip().split()
+			res[col[0]] += '\t' + col[1]
+
+	outputHandle = open(outfile, "w")
+	outputHandle.write(headerLine + '\n')
+	for i in res:
+		outputHandle.write( i + res[i] + '\n')
+
+
+def deseq(sampleCountPath_Condition, outdir):
+	'''deseq to call DEGs '''
+
+	htseq2table(sampleCountPath_Condition, os.path.join(outdir, 'data.table'))
+
+	Rscript = '''
+library(DESeq)
+setwd("$outdir")
+
+countTable = read.table( "data.table", header=TRUE, row.names=1 )
+condition = colnames(countTable)
+
+cds = newCountDataSet( countTable, condition )
+
+##normalization
+cds = estimateSizeFactors( cds )
+sizeFactors( cds )
+normCounts = counts( cds, normalized=TRUE )
+cds = estimateDispersions( cds )
+#cds = estimateDispersions( cds, method="blind", sharingMode = "fit-only" )
+
+#boxplot
+df = as.data.frame(normCounts)
+mat = log10(df + 1)
+library(gplots)
+library(reshape)
+mat.melt = melt(mat)
+qplot(factor(variable), value, data=mat.melt, geom="boxplot", fill=factor(variable), alpha=I(.5))
+
+# hclust
+d = dist(t(df))
+h = hclust(d)
+plot(h)
+
+df = df[rowSums(df)>0,]
+mat=as.matrix(df)
+mat.z = t(scale(t(mat)))
+hm = heatmap.2(mat.z,main='gene expression heatmap',col=rev(redblue(125)),
+          keysize=1,density.info="none", srtCol=45, margins = c(10,5),
+          dendrogram="col", #key.title='expression level',key.xlab = "log10(CPM+1)",
+          trace="none",labRow=NA, Rowv = TRUE, Colv=FALSE,
+          scale="none")
+
+#Calling differential expression
+call_DEG = function(condition1, condition2){
+  res = nbinomTest( cds, condition1, condition2 )
+  #DESeq::plotMA(res)
+  resSig = res[ res$pval < 0.05, ]
+  resSig = na.omit(resSig)
+  resSig <- resSig[ order(resSig$pval), ]
+  outFile = paste(condition1, condition2, "DEG.xls", sep="_")
+  outFile.all = paste(condition1, condition2, "ALL.xls", sep="_")
+  write.table(resSig, file=outFile, quote=FALSE, sep="\\t", row.names=FALSE)
+  write.table(res, file=outFile.all, quote=FALSE, sep="\\t", row.names=FALSE)
+}
+
+call_DEG("$C1", "$C2")
+'''
+
+	C1 = C2 = ''
+
+	for samplePath in sampleCountPath_Condition:
+		C1 = sampleCountPath_Condition[samplePath].split('_')[0]
+	for samplePath in sampleCountPath_Condition:
+		if sampleCountPath_Condition[samplePath].split('_')[0] != C1:
+			C2 = sampleCountPath_Condition[samplePath].split('_')[0]
+			break
+
+	try:
+		Rscript = Rscript.safe_substitute(outdir = outdir, C1 = C1, C2 = C2)
+	except:
+		Rscript = Rscript.safe_substitute(outdir = outdir, C1 = 'Condition1', C2 = 'Condition2')
+	finally:
+		pass
+
+
 
 def dexseq():
 	'''under construction '''
 	pass
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
