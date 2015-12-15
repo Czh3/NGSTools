@@ -7,6 +7,7 @@ import sys
 import NGSTools
 import argparse
 import os
+import re
 
 from multiprocessing import Process, Manager
 
