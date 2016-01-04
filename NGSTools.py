@@ -176,10 +176,10 @@ def bcftools_call(bam, cfg, outdir='', sampleName=''):
 								'| %s call -vmO z' % (cfg.bcftools),
 								'-o %s/%s.vcf.gz' % (outdir, sampleName)])
 
-	return command
+	return (command, '%s/%s.vcf.gz' % (outdir, sampleName))
 
 
-def bcftools_filter(bam, inputVcf, outputVcf, cfg):
+def bcftools_filter(inputVcf, outputVcf, cfg):
 	''' snp/indel hard filter using samtools/bcftools '''
 
 	command = '\\\n\t'.join(['%s filter -O z' % cfg.bcftools,
@@ -532,6 +532,7 @@ class NGSTools(getConfig):
 
 		command = '\\\n\t'.join(['%s --bowtie2' % self.bismark,
 								'%s -p 5' % qualityBase,
+								'--non_directional',
 								'-o %s' % myOutdir,
 								'--temp_dir %s/tmp' % myOutdir,
 								'%s' % self.bismark_genome,
@@ -795,11 +796,11 @@ class NGSTools(getConfig):
 		outdir = os.path.join(self.outdir, 'variation', self.sampleName)
 		_mkdir(outdir)
 
-		command = bcftools_call(self.bam, self, outdir, self.sampleName)
+		command, rawVcf = bcftools_call(self.bam, self, outdir, self.sampleName)
 
 		writeCommands(command, outdir+'/samtools_call_'+self.sampleName+'.sh', run)
 
-		self.rawVcf = '%s/%s.vcf.gz' % (outdir, self.sampleName)
+		self.rawVcf = rawVcf
 
 		return self.rawVcf
 
@@ -810,7 +811,7 @@ class NGSTools(getConfig):
 		outdir = os.path.join(self.outdir, 'variation', self.sampleName)
 
 		self.filterVcf = re.sub(r'vcf.gz$', 'filter.vcf.gz', self.rawVcf)
-		command = bcftools_filter(self.bam, self.rawVcf, self.filterVcf, self)
+		command = bcftools_filter(self.rawVcf, self.filterVcf, self)
 
 		writeCommands(command, outdir+'/samtools_filter_'+self.sampleName+'.sh', run)
 
