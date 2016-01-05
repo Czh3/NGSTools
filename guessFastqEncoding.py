@@ -24,7 +24,7 @@ def main():
 	flag = 0
 	defaultLineNumber = 0
 
-	for line in open(sys.argv[1]):
+	for line in safe_open(sys.argv[1]):
 		defaultLineNumber += 1
 		if defaultLineNumber % 4 == 0:
 			if search(r'\d', line):
