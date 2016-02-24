@@ -127,6 +127,9 @@ def processSample(line, condition, transcripts, countsFiles, finalBam, expressCX
 		if args.dataType == 'raw':
 			#mySample.cutadapter(adapter5='', adapter3='AATGATACGGCGACCACCGAGATCT', run = _run)
 			mySample.cutadapter(run = _run)
+			### Nextera Kit
+			#mySample.cutadapter(adapter5='CTGTCTCTTATACAC', adapter3='CTGTCTCTTATACAC',run = _run)
+			
 			#mySample.rm_lowQual(run = _run)
 		else:
 			pass
