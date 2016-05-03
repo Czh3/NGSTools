@@ -23,7 +23,8 @@ GetOptions("q:i"=>\$basethres,"Q:i"=>\$mapQthres,"r:s"=>\$bedfile,"s:s"=>\$sampl
 $sample_name ||= 'sample';
 $basethres ||= 0;
 $mapQthres ||= 0;
-$addnFile="/PUBLIC/database/HEALTH/genome/human/b37_gatk/all.NBlock.larger1000bp.bed";
+#$addnFile="/PUBLIC/database/HEALTH/genome/human/b37_gatk/all.NBlock.larger1000bp.bed";
+$addnFile="Nblock.bed";
 die `pod2text $0` if(@ARGV<2 || $help);
 
 

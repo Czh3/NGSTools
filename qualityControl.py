@@ -58,7 +58,7 @@ if __name__ == '__main__':
 	parser.add_argument('-a', '--averageQuality',
 						help='The average quality of SE/PE reads less than the averageQuality will be descard.',
 						type=float,
-						default=0)
+						default=10)
 
 	parser.add_argument('-f', '--phredQualtiy',
 						help='phred quality score',

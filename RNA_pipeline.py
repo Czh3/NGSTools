@@ -22,16 +22,16 @@ parser.add_argument('-o', '--outDir',
 					default='out')
 parser.add_argument('-d', '--dataType',
 					help='fastq data type:\n'
-					'raw data or clean data.\n'
+					'raw data or clean data.[clean]\n'
 					' if (clean data): not run cutadapter',
 					choices=['raw', 'clean'],
 					default='clean')
 parser.add_argument('-l', '--libraryType',
-					help='library type for tophat2 mapper,default none strand-specific\n',
+					help='library type for tophat2 mapper,default none strand-specific[fr-unstranded]\n',
 					choices=['fr-unstranded', 'fr-firststrand', 'fr-secondstrand'],
 					default='fr-unstranded')
 parser.add_argument('-a', '--analysis',
-					help='analysis of the pipeline to do.\n'
+					help='analysis of the pipeline to do.[1,2]\n'
 					'Here is some software to choose to analy\n'
 					'[1:QC, quality control\n'
 					' 2:Mapping, align the reads to reference genome\n'
@@ -45,8 +45,9 @@ parser.add_argument('-c', '--config',
 					help='the config file of NGSTools package.',
 					default='~/.NGSTools.cfg')
 parser.add_argument('--debug',
-					help='debug mode',
-					default=False)
+					help='debug mode[False]',
+					choices=['False', 'True'],
+					default='False')
 args = parser.parse_args()
 
 
@@ -85,7 +86,7 @@ if 7 in analy:
 
 global _run
 _run = ''
-if args.debug == False:
+if args.debug == 'False':
 	_run = True
 else:
 	_run = False
@@ -211,6 +212,93 @@ def processSample(line, condition, transcripts, countsFiles, finalBam, expressCX
 		#else:
 		#	expressCXB[sample['condition']] = cxbFile
 
+
+def catFQ(files, outfile):
+	# cat several file to a single file
+	if files[0].endswith(".gz"):
+		cmd = 'zcat '
+	else:
+		cmd = 'cat '
+
+	for i in files:
+		cmd += ' ' + i
+
+	if files[0].endswith(".gz"):
+		cmd += ' | gzip -c > ' + outfile
+	else:
+		cmd += ' > ' + outfile
+
+	if _run == True:
+		os.system(cmd)
+
+
+def mergeFQ():
+	'''merge the sample' fastq file which from different lane '''
+	samplesMerge = []
+	samples = []
+	samplesDict = {}
+	output = {}
+
+	for line in open(args.sampleList):
+		if line.startswith('#') or line == "\n":
+			continue
+
+		cols = line.strip().split()
+		if cols[0] in samples:
+			# duplicated sample name need to merge fastq
+			samplesMerge.append(cols[0])
+		else:
+			output[cols[0]] = cols
+
+		samples.append(cols[0])
+		if samplesDict.has_key(cols[0]):
+			samplesDict[cols[0]].append(cols[2:])
+		else:
+			samplesDict[cols[0]] = [cols[2:]]
+
+
+	# do not need to merge
+	if len(samples) == len(set(samples)):
+		return(args.sampleList)
+	# need to merge
+	else:
+		records = []
+		for sample in samplesMerge:
+			sampleFQ = []
+			sampleFQ_PE = []
+			for fq in samplesDict[sample]:
+				if len(fq) == 1:	# single end
+					sampleFQ.append(fq[0])
+				else:				# paired end
+					sampleFQ.append(fq[0])
+					sampleFQ_PE.append(fq[1])
+			
+			# fq1
+			outfile = os.path.dirname(sampleFQ[0]) + '/merged_' + os.path.basename(sampleFQ[0])
+			output[sample][2] = outfile
+			P = Process(name = sample, target = catFQ, args = (sampleFQ, outfile,))
+			P.start()
+			records.append(P)
+			
+			# fq2
+			if sampleFQ_PE != []:
+				outfile = os.path.dirname(sampleFQ_PE[0]) + '/merged_' + os.path.basename(sampleFQ_PE[0])
+				output[sample][3] = outfile
+				P = Process(name = sample+'r2', target = catFQ, args = (sampleFQ_PE, outfile,))
+				P.start()
+				records.append(P)
+			
+		for rec in records:
+			rec.join()
+
+		out = open(args.sampleList + '.merged', 'w')
+		for i in output:
+			out.write("\t".join(output[i]) + '\n')
+
+		return(args.sampleList + '.merged')
+
+
+
 # process communication
 mng = Manager()
 condition = mng.dict()
@@ -222,9 +310,7 @@ expressCXB = mng.dict()
 # multi-process
 record = []
 
-for line in open(args.sampleList):
-	if line.startswith('#') or line == '\n':
-		continue
+for line in open(mergeFQ()):
 	
 	sampleName = line.split('\t')[0]
 
@@ -258,7 +344,7 @@ if Cufflinks:
 	
 	cond = ','.join(condition.keys())
 	bams = ' '.join(condition.values())
-	command = 'cuffnorm --library-type %s -o %s -L %s %s %s' % (args.libraryType, cuffnorm_dir, cond, cfg.gtf, bams)
+	command = 'mkdir cuffnorm\ncuffnorm --library-type %s -o %s -L %s %s %s' % (args.libraryType, cuffnorm_dir, cond, cfg.gtf, bams)
 	NGSTools.writeCommands(command, cuffdir+'/cuffnorm.sh', _run)
 
 

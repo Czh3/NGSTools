@@ -257,6 +257,7 @@ class NGSTools(getConfig):
 		_mkdir(self.outdir+'/data/'+self.sampleName)
 
 		# link the raw fastq file to the work dir, and rename it
+		fq1 = os.path.abspath(fq1)
 		assert isFile(fq1)
 
 		if fq1.endswith('.gz'):
@@ -268,6 +269,7 @@ class NGSTools(getConfig):
 
 		# PE reads or SE reads
 		if fq2 != '-':
+			fq2 = os.path.abspath(fq2)
 			assert isFile(fq2)
 			if fq2.endswith('.gz'):
 				self.fq2 = self.outdir+'/data/'+sampleName+'/'+sampleName+'.2.fq.gz'

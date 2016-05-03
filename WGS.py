@@ -106,10 +106,14 @@ def sampleListParser():
 	sampleListDict = {}
 
 	for line in open(args.sampleList):
-		if line.startswith('#'):
+		if line.startswith('#') or line == "\n":
 			continue
 		# "sampleID\tsampleName\tfastq1Path\tfastq2Path"
 		cols = line.strip().split()
+
+		# fastq exists
+		if not (os.path.exists(cols[2]) and os.path.exists(cols[3])):
+			os.exit("fastq file don't exists!")
 
 		if sampleListDict.has_key(cols[1]):
 			if sampleListDict[cols[1]].has_key(cols[0]):
@@ -170,11 +174,11 @@ def processSample(sampleName, sampleNameDict):
 	for proc in record:
 		proc.join()
 		
-	
+
 	######################	2.1 post mapping  ####################
 	bamFileDir = os.path.dirname(libraryBamFileList[0])
-	finalBamFilePath = os.path.join(bamFileDir, "%s_properly.bam" % sampleName)
 	mergedBamFilePath = os.path.join(bamFileDir, "%s_merged.bam" % sampleName)
+	finalBamFilePath = mergedBamFilePath
 
 	# merge the bam from each lane to one final bam
 	command = NGSTools.picard_merge(libraryBamFileList, mergedBamFilePath, cfg)
@@ -214,7 +218,7 @@ sampleListDict = sampleListParser()
 # init mult-processer
 records = []
 for sampleName in sampleListDict:
-
+	
 	P = Process(name = sampleName, target = processSample, args = (sampleName, sampleListDict[sampleName], ))
 	
 	P.start()

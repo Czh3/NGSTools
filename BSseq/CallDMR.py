@@ -134,7 +134,7 @@ if __name__ == '__main__':
 	fileHand1 = safeOpen(sys.argv[1])
 	fileHand2 = safeOpen(sys.argv[2])
 
-	data = readWindows(fileHand1, fileHand2, window=50, minDepth=10, site=2)
+	data = readWindows(fileHand1, fileHand2,ctype=sys.argv[3], window=50, minDepth=10, site=2)
 
 	## background region
 	# all sequenced region
