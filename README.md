@@ -2,7 +2,7 @@
 
 Author: Czh3 <zhangchao3@hotmail.com>
 
-  High-throughput sequencing technology is repaidly becoming the standrd method for genomics, transcriptomic and epigenetics. The down stream data analysis is sophisticated because of the unprecedented data throughput. This NGSTools helps you to do this easily by writing a few line of scripts.
+  High-throughput sequencing technology is repaidly becoming the standard method for genomics, transcriptomic and epigenetics. The down stream data analysis is sophisticated because of the unprecedented data throughput. This NGSTools helps you to do this easily by writing a few lines of script.
 
 ###For illumina sequencing platform:
 * Hiseq 2000
@@ -27,9 +27,11 @@ Author: Czh3 <zhangchao3@hotmail.com>
 
 This package help you to build your own pipeline easily.
 
+## Examples pipeline:
+
 Here are several examples of NGS pipelines.
 
-mRNA sequencing
+###mRNA sequencing
 ```bash
 python2.7 ~/bin/NGSTools/RNA_pipeline.py --sampleList sample.list\
 	-d raw  -o pipe_out -c ~/.mouse.cfg\
@@ -69,7 +71,7 @@ optional arguments:
   --debug DEBUG         debug mode
 ```
 
-BS sequence pipeline
+###BS sequence pipeline (WGBS,RRBS)
 ```bash
 python ~/bin/NGSTools/BS_seq.py -s sample.list 	\
 	-o result 	\
@@ -108,7 +110,39 @@ optional arguments:
   --debug DEBUG         debug mode
 ```
 
-MeDIP pipeline
+### WGS pipeline
+
+```bash
+python WGS.py --help
+usage: WGS.py [-h] -s SAMPLELIST [-o OUTDIR] [-c CONFIG] [-a ANALYSIS]
+              [-b QBASE] [--debug DEBUG]
+
+A pipeline for WGS data analysis. <zhangchao3@hotmail.com>
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s SAMPLELIST, --sampleList SAMPLELIST
+                        sample list for RNA samples information.
+                         A file each line contains:
+                        sampleID	sampleName	fastq1Path	fastq2Path
+  -o OUTDIR, --outDir OUTDIR
+                        The pipeline output dir
+  -c CONFIG, --config CONFIG
+                        the config file of NGSTools package.
+  -a ANALYSIS, --analysis ANALYSIS
+                        analysis of the pipeline to do.
+                        Here is some software to choose to analy
+                        [1:QC, quality control
+                         2:Mapping, align the reads to reference genome
+                         3:picard_rmdup, remove PCR duplicates using picard
+                         4:mpileup, call SNP using samtools mpileup]
+  -b QBASE, --qbase QBASE
+                        quality base of base calling: 33(default) or 64
+  --debug DEBUG         debug mode
+```
+
+
+###MeDIP pipeline
 ```bash
 python ~/bin/NGSTools/MeDIP.py -s sample.list	\
 	-o result	\
