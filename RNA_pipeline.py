@@ -311,7 +311,9 @@ expressCXB = mng.dict()
 record = []
 
 for line in open(mergeFQ()):
-	
+	if line.startswith('#') or line == "\n":
+		continue
+
 	sampleName = line.split('\t')[0]
 
 	P = Process(name=sampleName, target=processSample, args=(line, condition, transcripts, countsFiles, finalBam, expressCXB))
